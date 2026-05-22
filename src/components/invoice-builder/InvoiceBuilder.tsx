@@ -548,7 +548,6 @@ export default function InvoiceBuilder() {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <h1 style={{ fontSize: '20px', fontWeight: 700, color: '#FAFAFA', margin: 0 }}>New Invoice</h1>
-              {/* ── Auto-save status indicator ── */}
               {saveStatus === 'saving' && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#71717A' }}>
                   <div style={{ width: '12px', height: '12px', border: '1.5px solid rgba(255,255,255,0.15)', borderTopColor: '#10b981', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
@@ -610,14 +609,48 @@ export default function InvoiceBuilder() {
         </div>
       )}
 
-      {/* 2-column layout — form + preview */}
+      {/* 2-column layout — preview left, form right, both scroll together */}
       <div style={{
         display: 'flex',
-        gap: '24px',
+        gap: '28px',
         alignItems: 'flex-start',
-        paddingBottom: showPreview ? '0' : '0',
       }}>
-        {/* Left: form sections */}
+        {/* Left: live preview — no sticky, scrolls with page */}
+        {showPreview && (
+          <div style={{ width: '360px', flexShrink: 0, alignSelf: 'flex-start', paddingTop: '4px' }}>
+            <div style={{ fontSize: '11px', fontWeight: 600, color: '#52525B', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
+              {INVOICE_TEMPLATES.find(t => t.id === selectedTemplateId)?.name || 'Modern'}
+            </div>
+            <div style={{
+              background: '#fff',
+              borderRadius: '12px',
+              overflow: 'hidden',
+              boxShadow: '0 0 0 1px rgba(0,0,0,0.06), 0 4px 32px rgba(0,0,0,0.14)',
+            }}>
+              <div style={{ maxHeight: '600px', overflow: 'auto' }}>
+                <LivePreview invoice={previewInvoice} templateId={selectedTemplateId} />
+              </div>
+            </div>
+            {/* Toggle preview button below preview */}
+            <button
+              onClick={() => setShowPreview(false)}
+              style={{
+                marginTop: '10px', width: '100%',
+                padding: '8px',
+                borderRadius: '8px',
+                border: '1px solid rgba(255,255,255,0.08)',
+                background: 'rgba(255,255,255,0.04)',
+                color: '#71717A',
+                fontSize: '12px', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+              }}
+            >
+              Focus mode
+            </button>
+          </div>
+        )}
+
+        {/* Right: form sections */}
         <div style={{
           flex: 1,
           minWidth: 0,
@@ -796,43 +829,6 @@ export default function InvoiceBuilder() {
           {/* Spacer to prevent sticky bar from covering last content */}
           <div style={{ height: '100px' }} />
         </div>
-
-        {/* Right: live preview */}
-        {showPreview && (
-          <div style={{
-            width: '380px',
-            flexShrink: 0,
-          }}>
-            <div style={{ position: 'sticky', top: '96px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                <div style={{ fontSize: '11px', fontWeight: 600, color: '#52525B', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                  Live preview — {INVOICE_TEMPLATES.find(t => t.id === selectedTemplateId)?.name}
-                </div>
-                {/* Eye toggle button */}
-                <button
-                  onClick={() => setShowPreview(false)}
-                  title="Hide preview (Focus mode)"
-                  style={{
-                    width: '28px', height: '28px',
-                    borderRadius: '6px',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    background: 'rgba(255,255,255,0.04)',
-                    color: '#71717A',
-                    cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    transition: 'all 0.15s',
-                  }}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
-                </button>
-              </div>
-              <LivePreview invoice={previewInvoice} templateId={selectedTemplateId} />
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Focus mode banner when preview is hidden */}
