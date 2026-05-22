@@ -1,8 +1,7 @@
 'use client'
 
 import type { Invoice } from '@/types/invoice'
-import { CURRENCY_SYMBOLS, InvoiceType } from '@/types/invoice'
-import { calculateInvoiceTotals } from '@/types/invoice'
+import { CURRENCY_SYMBOLS } from '@/types/invoice'
 import type { TemplateId } from '@/types/template'
 import {
   ClassicTemplate, ModernTemplate, MinimalTemplate,
@@ -34,14 +33,12 @@ export default function LivePreview({ invoice, templateId = 'modern' }: Props) {
   return (
     <div style={{
       background: '#fff',
-      borderRadius: '12px',
+      borderRadius: '10px',
       overflow: 'hidden',
-      boxShadow: '0 0 0 1px rgba(0,0,0,0.06), 0 4px 24px rgba(0,0,0,0.12)',
-      position: 'sticky',
-      top: '96px',
+      boxShadow: '0 0 0 1px rgba(0,0,0,0.05), 0 2px 16px rgba(0,0,0,0.08)',
     }}>
-      {/* Render selected template in a scrollable container */}
-      <div style={{ maxHeight: '700px', overflow: 'auto' }}>
+      {/* Invoice rendered inside a scrollable container if needed */}
+      <div style={{ overflow: 'auto', maxHeight: '560px' }}>
         <PreviewComp invoice={invoice} />
       </div>
     </div>

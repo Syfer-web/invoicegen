@@ -617,7 +617,7 @@ export default function InvoiceBuilder() {
       }}>
         {/* Left: live preview — no sticky, scrolls with page */}
         {showPreview && (
-          <div style={{ width: '360px', flexShrink: 0, alignSelf: 'flex-start', paddingTop: '4px' }}>
+          <div style={{ width: '360px', flexShrink: 0, alignSelf: 'flex-start' }}>
             <div style={{ fontSize: '11px', fontWeight: 600, color: '#52525B', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
               {INVOICE_TEMPLATES.find(t => t.id === selectedTemplateId)?.name || 'Modern'}
             </div>
@@ -627,11 +627,8 @@ export default function InvoiceBuilder() {
               overflow: 'hidden',
               boxShadow: '0 0 0 1px rgba(0,0,0,0.06), 0 4px 32px rgba(0,0,0,0.14)',
             }}>
-              <div style={{ maxHeight: '600px', overflow: 'auto' }}>
-                <LivePreview invoice={previewInvoice} templateId={selectedTemplateId} />
-              </div>
+              <LivePreview invoice={previewInvoice} templateId={selectedTemplateId} />
             </div>
-            {/* Toggle preview button below preview */}
             <button
               onClick={() => setShowPreview(false)}
               style={{
