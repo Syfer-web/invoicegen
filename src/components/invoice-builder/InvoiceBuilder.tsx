@@ -38,33 +38,47 @@ export default function InvoiceBuilder() {
 
   // Invoice state
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>('')
-  const [invoice, setInvoice] = useState<Partial<Invoice>>({
-    type: 'standard',
-    invoice_number: '',
-    status: 'draft',
-    client: createEmptyClient(),
-    issue_date: new Date().toISOString().split('T')[0],
-    due_date: '',
-    payment_terms: 30,
-    currency: 'EUR',
-    items: [createEmptyLineItem(21)],
-    discount_amount: 0,
-    discount_percent: 0,
-    subtotal: 0,
-    vat_total: 0,
-    total: 0,
-    project_ref: '',
-    order_number: '',
-    notes: '',
-    internal_notes: '',
-    payment_terms_text: '',
-    stripe_payment_link_id: '',
-    stripe_payment_link_url: '',
-    allow_partial_payment: false,
-    partial_payment_schedule: [],
-    early_payment_discount_percent: 0,
-    early_payment_days: 0,
-    accent_color: '#10b981',
+  const [invoice, setInvoice] = useState<Partial<Invoice>>(() => {
+    // Smart defaults on mount
+    const today = new Date()
+    const due = new Date(today)
+    due.setDate(due.getDate() + 30)
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const year = today.getFullYear()
+    const month = pad(today.getMonth() + 1)
+    const day = pad(today.getDate())
+    const dueDay = pad(due.getDate())
+    const dueMonth = pad(due.getMonth() + 1)
+    const dueYear = due.getFullYear()
+    const num = `INV-${year}-${String(Math.floor(Math.random() * 900) + 100)}`
+    return {
+      type: 'standard' as InvoiceType,
+      invoice_number: num,
+      status: 'draft' as const,
+      client: createEmptyClient(),
+      issue_date: `${year}-${month}-${day}`,
+      due_date: `${dueYear}-${dueMonth}-${dueDay}`,
+      payment_terms: 30,
+      currency: 'EUR' as Currency,
+      items: [createEmptyLineItem(21)],
+      discount_amount: 0,
+      discount_percent: 0,
+      subtotal: 0,
+      vat_total: 0,
+      total: 0,
+      project_ref: '',
+      order_number: '',
+      notes: '',
+      internal_notes: '',
+      payment_terms_text: '',
+      stripe_payment_link_id: '',
+      stripe_payment_link_url: '',
+      allow_partial_payment: false,
+      partial_payment_schedule: [],
+      early_payment_discount_percent: 0,
+      early_payment_days: 0,
+      accent_color: '#10b981',
+    }
   })
 
   const [loading, setLoading] = useState(true)

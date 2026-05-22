@@ -26,6 +26,15 @@ export default function LineItemsSection({ items, onChange, currency, defaultVat
   const cellInputRef = useRef<HTMLInputElement | null>(null)
   const symbol = CURRENCY_SYMBOLS[currency]
 
+  // Autocomplete state
+  const [autocompleteState, setAutocompleteState] = useState<{
+    rowIndex: number
+    inputValue: string
+    visible: boolean
+    activeIndex: number
+  }>({ rowIndex: -1, inputValue: '', visible: false, activeIndex: -1})
+  const autocompleteRef = useRef<HTMLDivElement>(null)
+
   const updateItem = (index: number, updates: Partial<LineItem>) => {
     const updated = items.map((item, i) => {
       if (i !== index) return item
@@ -41,6 +50,7 @@ export default function LineItemsSection({ items, onChange, currency, defaultVat
     const newItems = [...items, newItem]
     onChange(newItems)
     setShowCatalog(false)
+    closeAutocomplete()
     setTimeout(() => {
       setFocusedCell({ row: newItems.length - 1, field: 'description' })
     }, 50)
@@ -96,15 +106,82 @@ export default function LineItemsSection({ items, onChange, currency, defaultVat
 
   const removeItem = (index: number) => {
     if (items.length <= 1) return
+    closeAutocomplete()
     onChange(items.filter((_, i) => i !== index))
   }
 
   const subtotal = items.reduce((sum, item) => sum + item.quantity * item.unit_price * (1 - item.discount_percent / 100), 0)
 
+  // Autocomplete helpers
+  const closeAutocomplete = () => {
+    setAutocompleteState(prev => ({ ...prev, visible: false, activeIndex: -1 }))
+  }
+
+  const openAutocomplete = (rowIndex: number, inputValue: string) => {
+    const filtered = savedProducts
+      .filter(p => p.name.toLowerCase().includes(inputValue.toLowerCase()))
+      .slice(0, 5)
+    setAutocompleteState({ rowIndex, inputValue, visible: filtered.length > 0, activeIndex: -1 })
+  }
+
+  const getAutocompleteResults = () => {
+    if (autocompleteState.inputValue.length < 2) return []
+    return savedProducts
+      .filter(p => p.name.toLowerCase().includes(autocompleteState.inputValue.toLowerCase()))
+      .slice(0, 5)
+  }
+
+  const selectAutocompleteItem = (product: typeof savedProducts[0]) => {
+    updateItem(autocompleteState.rowIndex, { description: product.name, unit_price: product.unit_price, unit: product.unit, vat_rate: product.vat_rate } as Partial<LineItem>)
+    closeAutocomplete()
+    // move to quantity cell
+    setTimeout(() => setFocusedCell({ row: autocompleteState.rowIndex, field: 'quantity' }), 30)
+  }
+
+  // Close autocomplete on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (autocompleteRef.current && !autocompleteRef.current.contains(e.target as Node)) {
+        closeAutocomplete()
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
   // Tab navigation between cells
   const handleCellKeyDown = useCallback((e: KeyboardEvent<HTMLInputElement>, rowIndex: number, field: string) => {
     const fields = ['description', 'quantity', 'unit_price', 'vat_rate', 'discount_percent']
     const currentFieldIndex = fields.indexOf(field)
+
+    // Autocomplete navigation for description field
+    if (field === 'description' && autocompleteState.visible) {
+      const results = getAutocompleteResults()
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setAutocompleteState(prev => ({ ...prev, activeIndex: Math.min(prev.activeIndex + 1, results.length - 1) }))
+        return
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setAutocompleteState(prev => ({ ...prev, activeIndex: Math.max(prev.activeIndex - 1, -1) }))
+        return
+      }
+      if (e.key === 'Enter' && autocompleteState.activeIndex >= 0) {
+        e.preventDefault()
+        selectAutocompleteItem(results[autocompleteState.activeIndex])
+        return
+      }
+      if (e.key === 'Escape') {
+        closeAutocomplete()
+        return
+      }
+    }
+
+    // Close autocomplete on Tab out of description
+    if (field === 'description' && e.key === 'Tab') {
+      closeAutocomplete()
+    }
 
     if (e.key === 'Tab') {
       e.preventDefault()
@@ -115,6 +192,7 @@ export default function LineItemsSection({ items, onChange, currency, defaultVat
           setFocusedCell({ row: rowIndex - 1, field: fields[fields.length - 1] })
         }
       } else {
+        closeAutocomplete()
         if (currentFieldIndex < fields.length - 1) {
           setFocusedCell({ row: rowIndex, field: fields[currentFieldIndex + 1] })
         } else if (rowIndex < items.length - 1) {
@@ -127,6 +205,7 @@ export default function LineItemsSection({ items, onChange, currency, defaultVat
 
     if (e.key === 'Enter') {
       e.preventDefault()
+      closeAutocomplete()
       if (rowIndex < items.length - 1) {
         setFocusedCell({ row: rowIndex + 1, field: fields[0] })
       } else {
@@ -135,9 +214,10 @@ export default function LineItemsSection({ items, onChange, currency, defaultVat
     }
 
     if (e.key === 'Escape') {
+      closeAutocomplete()
       setFocusedCell(null)
     }
-  }, [items.length, addItem])
+  }, [items.length, addItem, autocompleteState, getAutocompleteResults, selectAutocompleteItem])
 
   // Focus the ref when focusedCell changes
   useEffect(() => {
@@ -162,12 +242,13 @@ export default function LineItemsSection({ items, onChange, currency, defaultVat
     padding: '8px 10px',
     borderRadius: '6px',
     border: isActive ? '1.5px solid #10b981' : '1px solid transparent',
-    background: isActive ? 'rgba(16,185,129,0.06)' : 'rgba(255,255,255,0.03)',
+    background: isActive ? 'rgba(16,185,129,0.08)' : 'rgba(255,255,255,0.03)',
     color: '#FAFAFA',
     fontSize: '13px',
     outline: 'none',
     boxSizing: 'border-box',
-    transition: 'border-color 0.1s, background 0.1s',
+    transition: 'border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease',
+    boxShadow: isActive ? '0 0 0 3px rgba(16,185,129,0.12)' : 'none',
   })
 
   const headerStyle: React.CSSProperties = {
@@ -179,15 +260,20 @@ export default function LineItemsSection({ items, onChange, currency, defaultVat
     alignItems: 'center',
   }
 
-  const rowStyle: React.CSSProperties = {
+  const rowStyle = (isFilled: boolean, isActiveRow: boolean): React.CSSProperties => ({
     display: 'grid',
     gridTemplateColumns: GRID_COLS,
     gap: '4px',
     padding: '6px 12px',
     alignItems: 'center',
     borderBottom: '1px solid rgba(255,255,255,0.03)',
-    transition: 'background 0.1s',
-  }
+    background: isActiveRow
+      ? 'rgba(16,185,129,0.04)'
+      : isFilled
+        ? 'rgba(255,255,255,0.035)'
+        : 'transparent',
+    transition: 'background 0.2s ease',
+  })
 
   const numericFields = ['quantity', 'unit_price', 'vat_rate', 'discount_percent']
 
@@ -206,6 +292,7 @@ export default function LineItemsSection({ items, onChange, currency, defaultVat
       : String(value ?? '')
     const isNumeric = numericFields.includes(field)
     const textAlign: React.CSSProperties['textAlign'] = isNumeric ? 'right' : 'left'
+    const isDescription = field === 'description'
 
     return (
       <input
@@ -217,7 +304,13 @@ export default function LineItemsSection({ items, onChange, currency, defaultVat
         min={extraProps.min}
         max={extraProps.max}
         step={extraProps.step}
-        onFocus={() => setFocusedCell({ row: rowIndex, field })}
+        onFocus={() => {
+          setFocusedCell({ row: rowIndex, field })
+          if (isDescription) {
+            const currentVal = items[rowIndex]?.description ?? ''
+            openAutocomplete(rowIndex, currentVal)
+          }
+        }}
         onBlur={e => {
           let val: string | number = e.target.value
           if (isNumeric) val = parseFloat(val as string) || 0
@@ -232,6 +325,9 @@ export default function LineItemsSection({ items, onChange, currency, defaultVat
             i !== rowIndex ? item : { ...item, [field]: val } as LineItem
           )
           onChange(newItems)
+          if (isDescription) {
+            openAutocomplete(rowIndex, e.target.value)
+          }
         }}
         onKeyDown={e => handleCellKeyDown(e, rowIndex, field)}
         style={{ ...cellInputStyle(isActive), textAlign }}
@@ -263,12 +359,15 @@ export default function LineItemsSection({ items, onChange, currency, defaultVat
     textAlign: 'left' as const,
   }
 
+  // Top 4 products for quick-add
+  const topProducts = savedProducts.slice(0, 4)
+
   return (
     <div style={{
       background: '#18181B',
       borderRadius: '12px',
       border: '1px solid rgba(255,255,255,0.06)',
-      overflow: 'hidden',
+      overflow: 'visible',
     }}>
       <style>{`
         .line-item-add-btn:hover {
@@ -279,6 +378,27 @@ export default function LineItemsSection({ items, onChange, currency, defaultVat
         .line-item-remove-btn:not(:disabled):hover {
           background: rgba(239,68,68,0.1) !important;
           color: #f87171 !important;
+        }
+        .quick-pill:hover {
+          border-color: rgba(16,185,129,0.5) !important;
+          background: rgba(16,185,129,0.08) !important;
+          color: #10b981 !important;
+          transform: translateY(-1px);
+        }
+        .autocomplete-item:hover,
+        .autocomplete-item.active {
+          background: rgba(16,185,129,0.1) !important;
+        }
+        .row-hover:hover {
+          background: rgba(255,255,255,0.025) !important;
+        }
+        .line-items-row input[type="number"]::-webkit-inner-spin-button,
+        .line-items-row input[type="number"]::-webkit-outer-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+        .line-items-row input[type="number"] {
+          -moz-appearance: textfield;
         }
       `}</style>
 
@@ -317,6 +437,45 @@ export default function LineItemsSection({ items, onChange, currency, defaultVat
           </button>
         </div>
       </div>
+
+      {/* Quick-add pill bar — only show when there are saved products */}
+      {topProducts.length > 0 && (
+        <div style={{
+          padding: '10px 20px 0',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+        }}>
+          <span style={{ fontSize: '11px', color: '#52525B', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', marginRight: '4px' }}>Quick add</span>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+            {topProducts.map(product => (
+              <button
+                key={product.id}
+                onClick={() => addItem(product)}
+                className="quick-pill"
+                title={`${product.name} — ${symbol}${product.unit_price.toFixed(2)}`}
+                style={{
+                  padding: '4px 12px',
+                  borderRadius: '20px',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  background: 'rgba(255,255,255,0.03)',
+                  color: '#A1A1AA',
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                }}
+              >
+                <span>{product.name}</span>
+                <span style={{ fontSize: '10px', opacity: 0.6 }}>{symbol}{product.unit_price.toFixed(0)}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Catalog panel */}
       {showCatalog && (
@@ -391,20 +550,22 @@ export default function LineItemsSection({ items, onChange, currency, defaultVat
       <div>
         {items.map((item, index) => {
           const rowTotal = item.quantity * item.unit_price * (1 - item.discount_percent / 100)
-          const isActive = focusedCell?.row === index
+          const isActiveRow = focusedCell?.row === index
+          const isFilled = !!item.description && item.description.trim().length > 0
+          const isDescriptionFocused = isFocusing(index, 'description')
+          const showAutocomplete = autocompleteState.visible && autocompleteState.rowIndex === index
+          const autocompleteResults = getAutocompleteResults()
 
           return (
             <div
               key={item.id}
-              style={{
-                ...rowStyle,
-                background: isActive ? 'rgba(16,185,129,0.03)' : 'transparent',
-              }}
+              style={rowStyle(isFilled, isActiveRow)}
+              className="row-hover"
               onMouseEnter={e => {
-                if (!isActive) (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.02)'
+                if (!isActiveRow) (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.025)'
               }}
               onMouseLeave={e => {
-                if (!isActive) (e.currentTarget as HTMLDivElement).style.background = 'transparent'
+                if (!isActiveRow) (e.currentTarget as HTMLDivElement).style.background = isFilled ? 'rgba(255,255,255,0.035)' : 'transparent'
               }}
             >
               {/* Drag handle */}
@@ -424,11 +585,62 @@ export default function LineItemsSection({ items, onChange, currency, defaultVat
                 {index + 1}
               </div>
 
-              {/* Description */}
-              {renderCell(index, 'description', item.description, 'Web design services…')}
+              {/* Description cell with autocomplete */}
+              <div style={{ position: 'relative' }}>
+                <div style={isDescriptionFocused ? { position: 'relative' } : {}}>
+                  {renderCell(index, 'description', item.description, 'Web design services…')}
+                </div>
+                {/* Autocomplete dropdown */}
+                {showAutocomplete && autocompleteResults.length > 0 && (
+                  <div
+                    ref={autocompleteRef}
+                    style={{
+                      position: 'absolute',
+                      top: 'calc(100% + 4px)',
+                      left: '0',
+                      right: '0',
+                      zIndex: 50,
+                      background: '#1C1C1F',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: '8px',
+                      overflow: 'hidden',
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                    }}
+                  >
+                    {autocompleteResults.map((product, prodIndex) => (
+                      <button
+                        key={product.id}
+                        className={`autocomplete-item${autocompleteState.activeIndex === prodIndex ? ' active' : ''}`}
+                        onClick={() => selectAutocompleteItem(product)}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          background: autocompleteState.activeIndex === prodIndex ? 'rgba(16,185,129,0.12)' : 'transparent',
+                          border: 'none',
+                          borderBottom: prodIndex < autocompleteResults.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          transition: 'background 0.1s',
+                        }}
+                      >
+                        <span style={{ fontSize: '13px', color: '#FAFAFA' }}>{product.name}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '12px', color: '#71717A' }}>{product.unit}</span>
+                          <span style={{ fontSize: '12px', color: '#10b981', fontWeight: 600 }}>{symbol}{product.unit_price.toFixed(2)}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               {/* Quantity */}
-              {renderCell(index, 'quantity', item.quantity, '1', { min: 0, step: 0.01 })}
+              <div className="line-items-row">
+                {renderCell(index, 'quantity', item.quantity, '1', { min: 0, step: 0.01 })}
+              </div>
 
               {/* Unit price */}
               <div style={{ position: 'relative' }}>
@@ -436,14 +648,20 @@ export default function LineItemsSection({ items, onChange, currency, defaultVat
                   position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)',
                   fontSize: '12px', color: '#52525B', pointerEvents: 'none', zIndex: 1,
                 }}>{symbol}</span>
-                {renderCell(index, 'unit_price', item.unit_price, '0.00', { min: 0, step: 0.01 }, v => v.toFixed(2))}
+                <div className="line-items-row">
+                  {renderCell(index, 'unit_price', item.unit_price, '0.00', { min: 0, step: 0.01 }, v => v.toFixed(2))}
+                </div>
               </div>
 
               {/* VAT */}
-              {renderCell(index, 'vat_rate', item.vat_rate, '21', { min: 0, max: 100, step: 0.1 })}
+              <div className="line-items-row">
+                {renderCell(index, 'vat_rate', item.vat_rate, '21', { min: 0, max: 100, step: 0.1 })}
+              </div>
 
               {/* Discount */}
-              {renderCell(index, 'discount_percent', item.discount_percent, '0', { min: 0, max: 100, step: 1 })}
+              <div className="line-items-row">
+                {renderCell(index, 'discount_percent', item.discount_percent, '0', { min: 0, max: 100, step: 1 })}
+              </div>
 
               {/* Total (read-only, calculated in real-time) */}
               <div style={{
