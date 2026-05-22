@@ -1,16 +1,15 @@
-import { createClient, type User } from '@supabase/supabase-js'
+import { createBrowserClient } from '@supabase/ssr'
 
-// Env vars — must be set in Vercel dashboard for auth to work
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  // eslint-disable-next-line no-console
-  console.warn('[supabase] Missing env vars')
-}
-
-// Plain browser client — no SSR cookie handling.
-// Auth state lives in localStorage; cookies are set manually by the server callback.
-export const supabase = createClient(supabaseUrl || '__placeholder__', supabaseAnonKey || '__placeholder__')
-
-export type { User }
+// Browser client — uses createBrowserClient so it can handle PKCE callbacks
+// (magic link, OAuth). detectSessionInUrl: true makes it auto-process
+// the ?code=XXX in the URL and exchange for a session.
+export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    detectSessionInUrl: true,
+    autoRefreshToken: true,
+    persistSession: true,
+  },
+})

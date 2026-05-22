@@ -14,7 +14,7 @@ export default function TestLogin() {
     try {
       const { data, error } = await supabase.auth.signInWithOtp({
         email,
-        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+        options: { emailRedirectTo: `${window.location.origin}/callback` },
       })
       console.log('magic link result:', { data, error })
       setResult({ data, error })

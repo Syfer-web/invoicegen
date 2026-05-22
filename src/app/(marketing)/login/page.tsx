@@ -20,7 +20,7 @@ export default function Login() {
       if (method === 'magic_link') {
         const { error } = await supabase.auth.signInWithOtp({
           email,
-          options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+          options: { emailRedirectTo: `${window.location.origin}/callback` },
         })
         if (error) throw error
         setSent(true)
