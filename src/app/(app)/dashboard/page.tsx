@@ -27,6 +27,8 @@ type Stats = {
   overdueAmount: number
 }
 
+type UserProfile = { full_name: string | null }
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function formatCurrency(amount: number, currency = 'EUR') {
@@ -45,138 +47,307 @@ function daysUntil(dateStr: string) {
   return Math.ceil(diff / (1000 * 60 * 60 * 24))
 }
 
-// ─── Status Badge ─────────────────────────────────────────────────────────────
+function formatMonthShort(date: Date) {
+  return date.toLocaleDateString('en-GB', { month: 'short' })
+}
 
-function StatusBadge({ status }: { status: string }) {
-  const styles: Record<string, string> = {
-    paid: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-    sent: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-    draft: 'bg-white/5 text-zinc-400 border-white/10',
-    overdue: 'bg-red-500/10 text-red-400 border-red-500/20',
-    cancelled: 'bg-zinc-800/50 text-zinc-500 border-zinc-700/50',
-  }
-  const labels: Record<string, string> = {
-    paid: 'Paid', sent: 'Sent', draft: 'Draft', overdue: 'Overdue', cancelled: 'Cancelled',
-  }
-  const dots: Record<string, string> = {
-    paid: 'bg-emerald-400', sent: 'bg-blue-400', draft: 'bg-zinc-500', overdue: 'bg-red-400', cancelled: 'bg-zinc-600',
-  }
-  const s = styles[status] || styles.draft
+// ─── Glow Orbs (background depth) ─────────────────────────────────────────
+
+function GlowOrbs() {
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium border ${s}`}>
-      <span className={`inline-block w-1.5 h-1.5 rounded-full ${dots[status] || 'bg-zinc-500'}`} />
-      {labels[status] || status}
-    </span>
+    <>
+      {/* Emerald glow — top right */}
+      <div style={{
+        position: 'absolute', top: '-80px', right: '-40px',
+        width: '320px', height: '320px',
+        background: 'radial-gradient(circle, rgba(16,185,129,0.08) 0%, transparent 70%)',
+        pointerEvents: 'none',
+      }} />
+      {/* Subtle secondary — bottom left */}
+      <div style={{
+        position: 'absolute', bottom: '-60px', left: '-20px',
+        width: '240px', height: '240px',
+        background: 'radial-gradient(circle, rgba(16,185,129,0.04) 0%, transparent 70%)',
+        pointerEvents: 'none',
+      }} />
+    </>
   )
 }
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 
 function StatCard({
-  label,
-  value,
-  sub,
-  accent,
-  href,
+  label, value, sub, accentColor, href,
 }: {
   label: string
   value: string
   sub: string
-  accent: string
+  accentColor: string
   href?: string
 }) {
+  const [hovered, setHovered] = useState(false)
   const content = (
-    <div className="group relative flex flex-col justify-between rounded-xl border border-white/10 bg-white/[0.03] p-5 transition-all duration-200 hover:border-white/15 hover:bg-white/[0.05]">
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        position: 'relative',
+        display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+        padding: '20px 24px',
+        borderRadius: '16px',
+        background: hovered ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.03)',
+        border: `1px solid ${hovered ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.08)'}`,
+        transition: 'all 0.2s ease',
+        cursor: href ? 'pointer' : 'default',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Accent bar on left */}
+      <div style={{
+        position: 'absolute', left: 0, top: '20%', bottom: '20%',
+        width: '3px',
+        borderRadius: '0 3px 3px 0',
+        background: accentColor,
+        opacity: hovered ? 1 : 0.6,
+        transition: 'opacity 0.2s ease',
+      }} />
       <div>
-        <p className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500 mb-3">{label}</p>
-        <p className={`text-2xl font-bold tracking-tight tabular-nums ${accent}`}>{value}</p>
+        <p style={{
+          fontSize: '10px', fontWeight: 700,
+          letterSpacing: '0.12em', textTransform: 'uppercase',
+          color: '#52525b', margin: '0 0 12px',
+        }}>{label}</p>
+        <p style={{
+          fontSize: '28px', fontWeight: 700,
+          letterSpacing: '-0.03em',
+          color: hovered ? '#fff' : (accentColor === '#fff' ? '#fff' : accentColor),
+          margin: 0,
+          transition: 'color 0.2s ease',
+        }}>{value}</p>
       </div>
-      <p className="text-xs text-zinc-500 mt-2">{sub}</p>
+      <p style={{ fontSize: '12px', color: '#52525b', margin: '8px 0 0' }}>{sub}</p>
       {href && (
-        <div className="absolute top-5 right-5 opacity-0 group-hover:opacity-100 transition-opacity">
-          <svg className="w-4 h-4 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        <div style={{
+          position: 'absolute', top: '20px', right: '20px',
+          opacity: hovered ? 1 : 0,
+          transition: 'opacity 0.2s ease',
+        }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#71717a" strokeWidth="2">
+            <path d="M9 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </div>
       )}
     </div>
   )
-
-  return href ? <Link href={href}>{content}</Link> : content
+  return href ? <Link href={href} style={{ textDecoration: 'none' }}>{content}</Link> : content
 }
 
-// ─── Revenue Chart (SVG) ───────────────────────────────────────────────────────
+// ─── Revenue Chart ───────────────────────────────────────────────────────────
 
 function RevenueChart({ monthly }: { monthly: { month: string; total: number }[] }) {
   const max = Math.max(...monthly.map(m => m.total), 1)
-  const height = 80
-  const points = monthly.map((m, i) => ({
-    x: (i / (monthly.length - 1)) * 100,
-    y: height - (m.total / max) * height,
-  }))
-  const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x}% ${p.y}`).join(' ')
-  const areaD = `${pathD} L 100% ${height} L 0% ${height} Z`
+  const height = 90
   const hasData = monthly.some(m => m.total > 0)
 
+  const points = monthly.map((m, i) => ({
+    x: (i / Math.max(monthly.length - 1, 1)) * 100,
+    y: height - (m.total / max) * height,
+    total: m.total,
+  }))
+
+  const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x}% ${p.y}`).join(' ')
+  const areaD = `${pathD} L 100% ${height} L 0% ${height} Z`
+  const areaGradientId = 'revGrad'
+
+  const total = monthly.reduce((s, m) => s + m.total, 0)
+
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-5">
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500">Revenue — last 6 months</p>
-        <p className="text-sm font-semibold text-white tabular-nums">
-          {formatCurrency(monthly.reduce((s, m) => s + m.total, 0))}
+    <div style={{
+      borderRadius: '16px',
+      background: 'rgba(255,255,255,0.03)',
+      border: '1px solid rgba(255,255,255,0.08)',
+      padding: '24px',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+        <p style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#52525b', margin: 0 }}>
+          Revenue — last 6 months
+        </p>
+        <p style={{ fontSize: '16px', fontWeight: 700, color: '#fff', margin: 0 }}>
+          {hasData ? formatCurrency(total) : '—'}
         </p>
       </div>
+
       {hasData ? (
-        <svg viewBox={`0 0 100 ${height}`} className="w-full" preserveAspectRatio="none">
-          <defs>
-            <linearGradient id="revGrad2" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#10b981" stopOpacity="0.25" />
-              <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
-            </linearGradient>
-          </defs>
-          <path d={areaD} fill="url(#revGrad2)" />
-          <path d={pathD} fill="none" stroke="#10b981" strokeWidth="0.6" strokeLinecap="round" strokeLinejoin="round" />
-          {points.map((p, i) => (
-            <circle key={i} cx={`${p.x}%`} cy={p.y} r="1" fill="#10b981" />
-          ))}
-        </svg>
+        <div style={{ position: 'relative' }}>
+          <svg viewBox={`0 0 100 ${height}`} style={{ width: '100%', display: 'block' }} preserveAspectRatio="none">
+            <defs>
+              <linearGradient id={areaGradientId} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#10b981" stopOpacity="0.2" />
+                <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            <path d={areaD} fill={`url(#${areaGradientId})`} />
+            <path d={pathD} fill="none" stroke="#10b981" strokeWidth="0.8" strokeLinecap="round" strokeLinejoin="round" />
+            {points.map((p, i) => (
+              <circle key={i} cx={`${p.x}%`} cy={p.y} r="1.5" fill="#10b981" />
+            ))}
+          </svg>
+          {/* Month labels */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', paddingLeft: '1px' }}>
+            {monthly.map(m => (
+              <span key={m.month} style={{ fontSize: '10px', color: '#3f3f46', flex: 1, textAlign: 'center' }}>{m.month}</span>
+            ))}
+          </div>
+        </div>
       ) : (
-        <div className="h-[80px] flex items-end justify-between gap-2 px-1">
-          {[0.2, 0.4, 0.6, 0.3, 0.5, 0.2].map((h, i) => (
-            <div key={i} className="flex-1 rounded-t-sm bg-white/5" style={{ height: `${h * 100}%` }} />
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '6px', height: `${height}px` }}>
+          {[35, 55, 40, 60, 45, 30].map((h, i) => (
+            <div key={i} style={{
+              flex: 1,
+              height: `${h}%`,
+              borderRadius: '4px 4px 0 0',
+              background: 'rgba(255,255,255,0.06)',
+            }} />
           ))}
         </div>
       )}
-      <div className="flex justify-between mt-2 px-1">
-        {monthly.map(m => (
-          <span key={m.month} className="text-[10px] text-zinc-600">{m.month}</span>
-        ))}
-      </div>
     </div>
   )
 }
 
-// ─── Empty State ───────────────────────────────────────────────────────────────
+// ─── Status Badge ─────────────────────────────────────────────────────────────
 
-function EmptyInvoiceState() {
+function StatusBadge({ status }: { status: string }) {
+  const configs: Record<string, { bg: string; text: string; dot: string; label: string }> = {
+    paid:    { bg: 'rgba(16,185,129,0.12)', text: '#34d399', dot: '#34d399', label: 'Paid' },
+    sent:    { bg: 'rgba(59,130,246,0.12)', text: '#60a5fa', dot: '#60a5fa', label: 'Sent' },
+    draft:   { bg: 'rgba(255,255,255,0.05)', text: '#71717a', dot: '#71717a', label: 'Draft' },
+    overdue: { bg: 'rgba(239,68,68,0.12)', text: '#f87171', dot: '#f87171', label: 'Overdue' },
+    cancelled: { bg: 'rgba(63,63,70,0.12)', text: '#52525b', dot: '#52525b', label: 'Cancelled' },
+  }
+  const c = configs[status] || configs.draft
   return (
-    <div className="flex flex-col items-center justify-center py-16 px-8 text-center">
-      <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-4">
-        <svg className="w-7 h-7 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: '5px',
+      padding: '3px 10px',
+      borderRadius: '100px',
+      fontSize: '11px', fontWeight: 600,
+      background: c.bg, color: c.text,
+    }}>
+      <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: c.dot }} />
+      {c.label}
+    </span>
+  )
+}
+
+// ─── Empty State ─────────────────────────────────────────────────────────────
+
+function EmptyState({ userName }: { userName: string }) {
+  return (
+    <div style={{ textAlign: 'center', padding: '48px 24px' }}>
+      {/* Invoice icon */}
+      <div style={{
+        width: '56px', height: '56px',
+        borderRadius: '16px',
+        background: 'rgba(255,255,255,0.04)',
+        border: '1px solid rgba(255,255,255,0.08)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        margin: '0 auto 16px',
+      }}>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#52525b" strokeWidth="1.5">
+          <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </div>
-      <h3 className="text-sm font-semibold text-white mb-1.5">No invoices yet</h3>
-      <p className="text-xs text-zinc-500 mb-5 max-w-xs leading-relaxed">Create your first invoice and start getting paid online.</p>
+      <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#a1a1aa', margin: '0 0 8px' }}>
+        No invoices yet
+      </h3>
+      <p style={{ fontSize: '13px', color: '#52525b', margin: '0 0 24px', maxWidth: '280px', marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.6 }}>
+        Create your first invoice and start getting paid online.
+      </p>
       <Link
         href="/invoices/new"
-        className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-black hover:bg-emerald-400 transition-colors"
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: '8px',
+          padding: '10px 20px',
+          borderRadius: '10px',
+          background: '#10b981', color: '#000',
+          fontSize: '14px', fontWeight: 600,
+          textDecoration: 'none',
+          transition: 'background 0.15s',
+        }}
       >
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <path d="M12 4v16m8-8H4" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
         New Invoice
       </Link>
+    </div>
+  )
+}
+
+// ─── Quick Actions ────────────────────────────────────────────────────────────
+
+const QUICK_ACTIONS = [
+  {
+    href: '/invoices/new',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M12 4v16m8-8H4" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+    iconBg: 'rgba(16,185,129,0.12)', iconColor: '#34d399',
+    title: 'New Invoice', sub: 'Create and send instantly',
+  },
+  {
+    href: '/clients',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+    iconBg: 'rgba(255,255,255,0.06)', iconColor: '#71717a',
+    title: 'Add Client', sub: 'Save for faster invoicing',
+  },
+  {
+    href: '/settings/bank',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+    iconBg: 'rgba(255,255,255,0.06)', iconColor: '#71717a',
+    title: 'Bank Details', sub: 'Set up payment info',
+  },
+  {
+    href: '/settings/reminders',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+    iconBg: 'rgba(255,255,255,0.06)', iconColor: '#71717a',
+    title: 'Reminders', sub: 'Auto-collect overdue',
+  },
+]
+
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+
+function Skeleton({ style }: { style?: React.CSSProperties }) {
+  return (
+    <div style={{
+      borderRadius: '16px',
+      background: 'rgba(255,255,255,0.03)',
+      border: '1px solid rgba(255,255,255,0.06)',
+      ...style,
+    }}>
+      <div style={{
+        height: '100%',
+        background: 'linear-gradient(90deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.07) 50%, rgba(255,255,255,0.03) 100%)',
+        backgroundSize: '200% 100%',
+        animation: 'shimmer 1.8s infinite',
+        borderRadius: '16px',
+      }} />
+      <style>{`@keyframes shimmer { 0% { background-position: 200% 0 } 100% { background-position: -200% 0 } }`}</style>
     </div>
   )
 }
@@ -187,6 +358,7 @@ export default function Dashboard() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [recentInvoices, setRecentInvoices] = useState<Invoice[]>([])
   const [monthlyRevenue, setMonthlyRevenue] = useState<{ month: string; total: number }[]>([])
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -194,13 +366,18 @@ export default function Dashboard() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      // Get company ID once
+      // Get profile for user name
+      const { data: profile } = await supabase
+        .from('profiles').select('full_name').eq('id', user.id).single()
+      if (profile) setUserProfile(profile)
+
+      // Get company
       const { data: company } = await supabase
         .from('companies').select('id').eq('user_id', user.id).single()
       const companyId = company?.id
       if (!companyId) { setLoading(false); return }
 
-      // Fetch invoices
+      // Invoices
       const { data: invoices } = await supabase
         .from('invoices').select('*, client:clients(name, email)')
         .eq('company_id', companyId)
@@ -240,179 +417,209 @@ export default function Dashboard() {
     load()
   }, [])
 
-  // ─── Skeleton ───────────────────────────────────────────────────────────────
+  // ─── Loading state ───────────────────────────────────────────────────────────
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-28 rounded-xl border border-white/10 bg-white/[0.03] animate-pulse" />
+      <div style={{ position: 'relative' }}>
+        <GlowOrbs />
+        {/* Greeting skeleton */}
+        <div style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <div style={{ width: '200px', height: '32px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', marginBottom: '8px' }} />
+            <div style={{ width: '140px', height: '16px', borderRadius: '6px', background: 'rgba(255,255,255,0.03)' }} />
+          </div>
+        </div>
+        {/* Stats skeleton */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '16px' }}>
+          {[220, 180, 160, 140].map((w, i) => (
+            <div key={i} style={{ borderRadius: '16px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', height: '112px' }}>
+              <div style={{ height: '100%', background: 'linear-gradient(90deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.07) 50%, rgba(255,255,255,0.03) 100%)', backgroundSize: '200% 100%', animation: 'shimmer 1.8s infinite', borderRadius: '16px' }} />
+            </div>
           ))}
         </div>
-        <div className="h-36 rounded-xl border border-white/10 bg-white/[0.03] animate-pulse" />
-        <div className="rounded-xl border border-white/10 bg-white/[0.03] animate-pulse h-64" />
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px' }}>
+          <div style={{ borderRadius: '16px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', height: '160px' }} />
+          <div style={{ borderRadius: '16px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', height: '160px' }} />
+        </div>
+        <style>{`@keyframes shimmer { 0% { background-position: 200% 0 } 100% { background-position: -200% 0 } }`}</style>
       </div>
     )
   }
 
+  // ─── Content ─────────────────────────────────────────────────────────────────
+
+  const hour = new Date().getHours()
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
+  const firstName = userProfile?.full_name?.split(' ')[0] || null
+
   return (
-    <div className="space-y-6">
-      {/* Stats row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div style={{ position: 'relative' }}>
+      <GlowOrbs />
+
+      {/* Header */}
+      <div style={{ marginBottom: '32px' }}>
+        <h1 style={{
+          fontSize: '28px', fontWeight: 700,
+          letterSpacing: '-0.03em', color: '#fff', margin: '0 0 6px',
+        }}>
+          {greeting}{firstName ? `, ${firstName}` : ''}
+        </h1>
+        <p style={{ fontSize: '14px', color: '#52525b', margin: 0 }}>
+          Here's what's happening with your invoices
+        </p>
+      </div>
+
+      {/* Stat cards */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(4, 1fr)',
+        gap: '14px',
+        marginBottom: '14px',
+      }}>
         <StatCard
           label="Outstanding"
           value={stats ? formatCurrency(stats.outstanding) : '—'}
-          sub={stats ? `${stats.outstandingCount} invoice${stats.outstandingCount !== 1 ? 's' : ''}` : ''}
-          accent="text-white"
-          href="/invoices?status=sent,draft"
+          sub={stats ? `${stats.outstandingCount} invoice${stats.outstandingCount !== 1 ? 's' : ''} pending` : ''}
+          accentColor="#fff"
+          href="/invoices"
         />
         <StatCard
           label="Paid this month"
           value={stats ? formatCurrency(stats.paidThisMonth) : '—'}
           sub={stats ? `${stats.paidThisMonthCount} paid` : ''}
-          accent="text-emerald-400"
+          accentColor="#34d399"
           href="/invoices?status=paid"
         />
         <StatCard
           label="Overdue"
           value={stats ? stats.overdueCount.toString() : '—'}
-          sub={stats ? formatCurrency(stats.overdueAmount) : ''}
-          accent={stats && stats.overdueCount > 0 ? 'text-red-400' : 'text-zinc-400'}
+          sub={stats ? (stats.overdueAmount > 0 ? formatCurrency(stats.overdueAmount) : 'No overdue') : ''}
+          accentColor={stats && stats.overdueCount > 0 ? '#f87171' : '#52525b'}
           href="/invoices?status=overdue"
         />
         <StatCard
           label="Total clients"
-          value="—"
+          value={stats ? stats.outstandingCount.toString() : '0'}
           sub="Add your first client"
-          accent="text-zinc-400"
+          accentColor="#52525b"
           href="/clients"
         />
       </div>
 
       {/* Revenue chart */}
-      <RevenueChart monthly={monthlyRevenue} />
+      <div style={{ marginBottom: '14px' }}>
+        <RevenueChart monthly={monthlyRevenue} />
+      </div>
 
-      {/* Bottom section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Recent invoices — wider */}
-        <div className="lg:col-span-2 rounded-xl border border-white/10 bg-white/[0.03] overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
-            <h2 className="text-sm font-semibold text-white">Recent invoices</h2>
-            <Link href="/invoices" className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors">
-              All invoices →
+      {/* Bottom row */}
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '14px' }}>
+
+        {/* Recent invoices */}
+        <div style={{
+          borderRadius: '16px',
+          background: 'rgba(255,255,255,0.03)',
+          border: '1px solid rgba(255,255,255,0.08)',
+          overflow: 'hidden',
+        }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '16px 20px',
+            borderBottom: '1px solid rgba(255,255,255,0.06)',
+          }}>
+            <h2 style={{ fontSize: '13px', fontWeight: 600, color: '#a1a1aa', margin: 0 }}>Recent invoices</h2>
+            <Link href="/invoices" style={{
+              fontSize: '12px', color: '#10b981', textDecoration: 'none',
+              fontWeight: 500, display: 'flex', alignItems: 'center', gap: '4px',
+            }}>
+              All invoices
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M5 12h14M12 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </Link>
           </div>
           {recentInvoices.length === 0 ? (
-            <EmptyInvoiceState />
+            <EmptyState userName={firstName || 'there'} />
           ) : (
-            <div className="divide-y divide-white/5">
-              {recentInvoices.map(inv => (
-                <Link
-                  key={inv.id}
-                  href="/invoices"
-                  className="flex items-center gap-4 px-5 py-3.5 hover:bg-white/[0.02] transition-colors group"
+            <div>
+              {recentInvoices.map((inv, i) => (
+                <div key={inv.id} style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '14px 20px',
+                  borderBottom: i < recentInvoices.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
+                  transition: 'background 0.15s',
+                  cursor: 'pointer',
+                }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.03)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <p className="text-sm font-medium text-white group-hover:text-emerald-300 transition-colors">{inv.invoice_number}</p>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 600, color: '#e4e4e7' }}>{inv.invoice_number}</span>
                       <StatusBadge status={inv.status} />
                     </div>
-                    <p className="text-xs text-zinc-500 truncate">
+                    <p style={{ fontSize: '12px', color: '#52525b', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {inv.client?.name || 'No client'} · Due {formatDate(inv.due_date)}
                       {daysUntil(inv.due_date) < 0 && inv.status !== 'paid' && (
-                        <span className="text-red-400 ml-1">({Math.abs(daysUntil(inv.due_date))}d overdue)</span>
+                        <span style={{ color: '#f87171', marginLeft: '6px' }}>({Math.abs(daysUntil(inv.due_date))}d overdue)</span>
                       )}
                     </p>
                   </div>
-                  <p className="text-sm font-semibold text-white tabular-nums flex-shrink-0">
+                  <span style={{ fontSize: '14px', fontWeight: 700, color: '#e4e4e7', marginLeft: '20px', flexShrink: 0 }}>
                     {formatCurrency(inv.total, inv.currency)}
-                  </p>
-                </Link>
+                  </span>
+                </div>
               ))}
             </div>
           )}
         </div>
 
         {/* Quick actions */}
-        <div className="rounded-xl border border-white/10 bg-white/[0.03] overflow-hidden">
-          <div className="px-5 py-4 border-b border-white/10">
-            <h2 className="text-sm font-semibold text-white">Quick actions</h2>
+        <div style={{
+          borderRadius: '16px',
+          background: 'rgba(255,255,255,0.03)',
+          border: '1px solid rgba(255,255,255,0.08)',
+          overflow: 'hidden',
+        }}>
+          <div style={{
+            padding: '16px 20px',
+            borderBottom: '1px solid rgba(255,255,255,0.06)',
+          }}>
+            <h2 style={{ fontSize: '13px', fontWeight: 600, color: '#a1a1aa', margin: 0 }}>Quick actions</h2>
           </div>
-          <div className="p-4 space-y-2">
-            <Link
-              href="/invoices/new"
-              className="flex items-center gap-3 rounded-lg px-4 py-3 hover:bg-white/5 transition-colors group"
-            >
-              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
-                <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          <div style={{ padding: '10px' }}>
+            {QUICK_ACTIONS.map((action) => (
+              <Link key={action.href} href={action.href} style={{
+                display: 'flex', alignItems: 'center', gap: '12px',
+                padding: '10px',
+                borderRadius: '10px',
+                textDecoration: 'none',
+                transition: 'background 0.15s',
+              }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >
+                <div style={{
+                  width: '34px', height: '34px',
+                  borderRadius: '9px',
+                  background: action.iconBg,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  flexShrink: 0,
+                }}>
+                  <span style={{ color: action.iconColor }}>{action.icon}</span>
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: '13px', fontWeight: 600, color: '#e4e4e7', margin: 0 }}>{action.title}</p>
+                  <p style={{ fontSize: '12px', color: '#52525b', margin: '2px 0 0' }}>{action.sub}</p>
+                </div>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3f3f46" strokeWidth="2">
+                  <path d="M9 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-white group-hover:text-emerald-300 transition-colors">New Invoice</p>
-                <p className="text-xs text-zinc-500">Create and send instantly</p>
-              </div>
-              <svg className="w-4 h-4 text-zinc-600 group-hover:text-zinc-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </Link>
-
-            <Link
-              href="/clients"
-              className="flex items-center gap-3 rounded-lg px-4 py-3 hover:bg-white/5 transition-colors group"
-            >
-              <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center flex-shrink-0">
-                <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                </svg>
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-white group-hover:text-emerald-300 transition-colors">Add Client</p>
-                <p className="text-xs text-zinc-500">Save for faster invoicing</p>
-              </div>
-              <svg className="w-4 h-4 text-zinc-600 group-hover:text-zinc-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </Link>
-
-            <Link
-              href="/settings/bank"
-              className="flex items-center gap-3 rounded-lg px-4 py-3 hover:bg-white/5 transition-colors group"
-            >
-              <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center flex-shrink-0">
-                <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-white group-hover:text-emerald-300 transition-colors">Bank Details</p>
-                <p className="text-xs text-zinc-500">Set up payment info</p>
-              </div>
-              <svg className="w-4 h-4 text-zinc-600 group-hover:text-zinc-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </Link>
-
-            <Link
-              href="/settings/reminders"
-              className="flex items-center gap-3 rounded-lg px-4 py-3 hover:bg-white/5 transition-colors group"
-            >
-              <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center flex-shrink-0">
-                <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                </svg>
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-white group-hover:text-emerald-300 transition-colors">Reminders</p>
-                <p className="text-xs text-zinc-500">Auto-collect overdue</p>
-              </div>
-              <svg className="w-4 h-4 text-zinc-600 group-hover:text-zinc-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </Link>
+              </Link>
+            ))}
           </div>
         </div>
+
       </div>
     </div>
   )
