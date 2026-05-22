@@ -147,7 +147,10 @@ export default function Login() {
           try {
             const { error } = await supabase.auth.signInWithOAuth({
               provider: 'google',
-              options: { redirectTo: `${window.location.origin}/callback` },
+              options: {
+              redirectTo: `${window.location.origin}/api/auth/callback`,
+              pkcePortable: true,
+            },
             })
             if (error) throw error
           } catch (err: any) {
