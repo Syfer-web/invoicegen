@@ -6,8 +6,7 @@ import { supabase } from '@/lib/supabase'
 export default function Callback() {
   useEffect(() => {
     // PKCE portable: tokens are in the URL fragment (#access_token=...)
-    // Parse them and set the session
-    const hash = window.location.hash.substring(1) // remove leading #
+    const hash = window.location.hash.substring(1)
     const params = new URLSearchParams(hash)
 
     const accessToken = params.get('access_token')
@@ -25,7 +24,6 @@ export default function Callback() {
         }
       })
     } else {
-      // Fallback: redirect to login
       window.location.href = '/login?error=no_token'
     }
   }, [])
