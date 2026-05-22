@@ -128,65 +128,99 @@ export default function InvoiceBuilder() {
 
   // Load initial data
   useEffect(() => {
+    let cancelled = false
+
     const loadData = async () => {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      try {
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (cancelled) return
 
-      // Load companies
-      const { data: companiesData } = await supabase
-        .from('companies')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-        .order('created_at')
+        if (!user) {
+          if (!cancelled) setLoading(false)
+          return
+        }
 
-      if (companiesData && companiesData.length > 0) {
-        setCompanies(companiesData)
-        const firstId = companiesData[0].id
-        setSelectedCompanyId(firstId)
-
-        // Load bank account
-        const { data: bank } = await supabase
-          .from('bank_details')
+        // Load companies
+        const { data: companiesData } = await supabase
+          .from('companies')
           .select('*')
-          .eq('company_id', firstId)
-          .eq('is_default', true)
-          .single()
-        if (bank) setBankAccount(bank)
-
-        // Load clients for this company
-        const { data: clientsData } = await supabase
-          .from('clients')
-          .select('id, name, company, email')
-          .eq('company_id', firstId)
-          .order('name')
-        if (clientsData) setSavedClients(clientsData)
-
-        // Load products for this company
-        const { data: productsData } = await supabase
-          .from('products')
-          .select('id, name, unit_price, unit, vat_rate')
-          .eq('company_id', firstId)
+          .eq('user_id', user.id)
           .eq('is_active', true)
-          .order('name')
-        if (productsData) setSavedProducts(productsData)
+          .order('created_at')
 
-        // Set currency and default VAT from company
-        const firstCompany = companiesData[0]
-        setInvoice(prev => ({
-          ...prev,
-          company_id: firstId,
-          currency: (firstCompany.default_currency || 'EUR') as Currency,
-          items: [createEmptyLineItem(firstCompany.default_vat_rate || 21)],
-          payment_terms: firstCompany.default_payment_terms || 30,
-        }))
+        if (cancelled) return
+
+        if (companiesData && companiesData.length > 0) {
+          const firstId = companiesData[0].id
+          if (!cancelled) {
+            setCompanies(companiesData)
+            setSelectedCompanyId(firstId)
+          }
+
+          // Load bank account
+          const { data: bank } = await supabase
+            .from('bank_details')
+            .select('*')
+            .eq('company_id', firstId)
+            .eq('is_default', true)
+            .single()
+          if (!cancelled && bank) setBankAccount(bank)
+
+          // Load clients for this company
+          const { data: clientsData } = await supabase
+            .from('clients')
+            .select('id, name, company, email')
+            .eq('company_id', firstId)
+            .order('name')
+          if (!cancelled && clientsData) setSavedClients(clientsData)
+
+          // Load products for this company
+          const { data: productsData } = await supabase
+            .from('products')
+            .select('id, name, unit_price, unit, vat_rate')
+            .eq('company_id', firstId)
+            .eq('is_active', true)
+            .order('name')
+          if (!cancelled && productsData) setSavedProducts(productsData)
+
+          // Set currency and default VAT from company
+          const firstCompany = companiesData[0]
+          if (!cancelled) {
+            setInvoice(prev => ({
+              ...prev,
+              company_id: firstId,
+              currency: (firstCompany.default_currency || 'EUR') as Currency,
+              items: [createEmptyLineItem(firstCompany.default_vat_rate || 21)],
+              payment_terms: firstCompany.default_payment_terms || 30,
+            }))
+          }
+        } else {
+          // User has no companies — still load, just no pre-selection
+          if (!cancelled) {
+            setCompanies([])
+            setSelectedCompanyId('')
+          }
+        }
+      } catch (err) {
+        console.error('InvoiceBuilder loadData error:', err)
       }
 
-      setLoading(false)
+      if (!cancelled) setLoading(false)
     }
 
     loadData()
+
+    // Safety timeout — never leave loading stuck
+    const timeout = setTimeout(() => {
+      cancelled = true
+      setLoading(false)
+    }, 8000)
+
+    return () => {
+      cancelled = true
+      clearTimeout(timeout)
+    }
   }, [])
 
   // When company changes, reload clients + products + bank
