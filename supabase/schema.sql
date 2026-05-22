@@ -11,11 +11,14 @@ create table if not exists public.profiles (
   plan text default 'free' check (plan in ('free', 'pro', 'scale')),
   stripe_customer_id text,
   stripe_subscription_id text,
+  max_companies integer default 1,
+  max_monthly_invoices integer default 5,
+  is_internal boolean default false,
+  subscription_status text default 'active',
+  template_favorites text[] default '{}',
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
-
--- Auto-create profile on signup
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin

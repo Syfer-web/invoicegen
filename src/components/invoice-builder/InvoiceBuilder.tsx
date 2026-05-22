@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import type { Invoice, Company, Client, LineItem, BankAccount, Currency, InvoiceType } from '@/types/invoice'
+import type { TemplateId } from '@/types/template'
 import { createEmptyLineItem, createEmptyClient, calculateInvoiceTotals, CURRENCY_SYMBOLS } from '@/types/invoice'
 import CompanySelector from '@/components/invoice-builder/CompanySelector'
 import ClientSection from '@/components/invoice-builder/ClientSection'
@@ -11,6 +12,8 @@ import PaymentSection from '@/components/invoice-builder/PaymentSection'
 import DatesRefsSection from '@/components/invoice-builder/DatesRefsSection'
 import NotesBrandingSection from '@/components/invoice-builder/NotesBrandingSection'
 import LivePreview from '@/components/invoice-builder/LivePreview'
+import { TemplateGallery } from '@/components/invoice-templates/TemplateGallery'
+import { INVOICE_TEMPLATES } from '@/types/template'
 
 // Supabase client
 function createClient() {
@@ -67,6 +70,8 @@ export default function InvoiceBuilder() {
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [selectedTemplateId, setSelectedTemplateId] = useState<TemplateId>('modern')
+  const [showTemplateGallery, setShowTemplateGallery] = useState(false)
 
   // Load initial data
   useEffect(() => {
@@ -567,6 +572,63 @@ export default function InvoiceBuilder() {
             onChangeAccentColor={v => setInvoice(prev => ({ ...prev, accent_color: v }))}
           />
 
+          {/* Template selector */}
+          <div style={{
+            background: '#18181B',
+            borderRadius: '12px',
+            border: '1px solid rgba(255,255,255,0.06)',
+            overflow: 'hidden',
+          }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '16px 20px',
+              borderBottom: showTemplateGallery ? '1px solid rgba(255,255,255,0.06)' : 'none',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ width: '20px', height: '20px', borderRadius: '6px', background: 'rgba(16,185,129,0.15)', color: '#10b981', fontSize: '12px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>7</span>
+                <span style={{ fontSize: '14px', fontWeight: 600, color: '#FAFAFA' }}>Invoice Template</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  background: 'rgba(255,255,255,0.06)',
+                  fontSize: '12px',
+                  color: '#A1A1AA',
+                }}>
+                  {INVOICE_TEMPLATES.find(t => t.id === selectedTemplateId)?.name || 'Modern'}
+                </div>
+                <button
+                  onClick={() => setShowTemplateGallery(!showTemplateGallery)}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    background: showTemplateGallery ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.05)',
+                    color: showTemplateGallery ? '#10b981' : '#A1A1AA',
+                    fontSize: '12px', fontWeight: 500,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {showTemplateGallery ? 'Hide templates' : 'Choose template'}
+                </button>
+              </div>
+            </div>
+
+            {showTemplateGallery && (
+              <div style={{ padding: '20px' }}>
+                <TemplateGallery
+                  selectedId={selectedTemplateId}
+                  onSelect={(id) => {
+                    setSelectedTemplateId(id)
+                    const template = INVOICE_TEMPLATES.find(t => t.id === id)
+                    if (template) setInvoice(prev => ({ ...prev, accent_color: template.accent }))
+                  }}
+                />
+              </div>
+            )}
+          </div>
+
           {/* Action bar */}
           <div style={{
             display: 'flex', gap: '10px',
@@ -636,8 +698,10 @@ export default function InvoiceBuilder() {
         {/* Right: live preview */}
         <div>
           <div style={{ position: 'sticky', top: '96px' }}>
-            <div style={{ fontSize: '11px', fontWeight: 600, color: '#52525B', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>Live preview</div>
-            <LivePreview invoice={previewInvoice} />
+            <div style={{ fontSize: '11px', fontWeight: 600, color: '#52525B', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
+              Live preview — {INVOICE_TEMPLATES.find(t => t.id === selectedTemplateId)?.name}
+            </div>
+            <LivePreview invoice={previewInvoice} templateId={selectedTemplateId} />
           </div>
         </div>
       </div>

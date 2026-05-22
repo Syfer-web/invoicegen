@@ -4,6 +4,13 @@ export const metadata: Metadata = {
   title: 'Dashboard — InvoiceGen',
 }
 
+// Force all (app) routes to be server-rendered on each request.
+// This prevents Next.js from attempting static prerendering at build time,
+// which fails because Supabase env vars aren't available during the build worker.
+// Pages in (app) depend on Supabase auth + data, so they must be dynamic.
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div style={{
