@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import type { Invoice, Company, Client, LineItem, BankAccount, Currency, InvoiceType } from '@/types/invoice'
 import type { TemplateId } from '@/types/template'
 import { createEmptyLineItem, createEmptyClient, calculateInvoiceTotals, CURRENCY_SYMBOLS } from '@/types/invoice'
@@ -26,6 +26,8 @@ function createClient() {
 
 interface SavedClient { id: string; name: string; company: string; email: string }
 interface SavedProduct { id: string; name: string; unit_price: number; unit: string; vat_rate: number }
+
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
 export default function InvoiceBuilder() {
   // Data
@@ -72,6 +74,57 @@ export default function InvoiceBuilder() {
   const [success, setSuccess] = useState(false)
   const [selectedTemplateId, setSelectedTemplateId] = useState<TemplateId>('modern')
   const [showTemplateGallery, setShowTemplateGallery] = useState(false)
+
+  // ── NEW UX STATE ────────────────────────────────────────────────────────────
+  const [showPreview, setShowPreview] = useState(true)
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
+  const [lastSaved, setLastSaved] = useState<Date | null>(null)
+  const unsavedChangesRef = useRef(false)
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  // Track unsaved changes
+  useEffect(() => {
+    unsavedChangesRef.current = true
+  }, [invoice])
+
+  // Auto-save every 30s when there are unsaved changes
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      if (!unsavedChangesRef.current) return
+      if (!selectedCompanyId) return
+      await performSave(true /* silent */)
+    }, 30000)
+    return () => clearInterval(interval)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCompanyId])
+
+  // Keyboard shortcuts: ⌘S to save, ⌘↵ to send
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isMac = navigator.platform.toUpperCase().includes('MAC')
+      const modKey = isMac ? e.metaKey : e.ctrlKey
+      if (modKey && e.key === 's') {
+        e.preventDefault()
+        handleSave()
+      }
+      if (modKey && e.key === 'Enter') {
+        e.preventDefault()
+        handleSend()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCompanyId, invoice])
+
+  // Computed totals
+  const { subtotal, discount_amount, vat_total, total, vat_breakdown } = calculateInvoiceTotals(
+    invoice.items || [],
+    invoice.discount_amount || 0
+  )
+
+  const selectedCompany = companies.find(c => c.id === selectedCompanyId)
+  const symbol = CURRENCY_SYMBOLS[invoice.currency as Currency] || '€'
 
   // Load initial data
   useEffect(() => {
@@ -179,15 +232,6 @@ export default function InvoiceBuilder() {
     }))
   }, [companies])
 
-  // Computed totals
-  const { subtotal, discount_amount, vat_total, total, vat_breakdown } = calculateInvoiceTotals(
-    invoice.items || [],
-    invoice.discount_amount || 0
-  )
-
-  const selectedCompany = companies.find(c => c.id === selectedCompanyId)
-  const symbol = CURRENCY_SYMBOLS[invoice.currency as Currency] || '€'
-
   // Auto-calculate due date when payment terms changes
   const handlePaymentTermsChange = (days: number) => {
     const issue = invoice.issue_date ? new Date(invoice.issue_date) : new Date()
@@ -195,10 +239,10 @@ export default function InvoiceBuilder() {
     setInvoice(prev => ({ ...prev, payment_terms: days, due_date: due.toISOString().split('T')[0] }))
   }
 
-  // Handle save
-  const handleSave = async () => {
-    setSaving(true)
-    setError('')
+  // Shared save logic (used by both manual and auto-save)
+  const performSave = async (silent = false) => {
+    if (!selectedCompanyId) return
+    if (!silent) setSaveStatus('saving')
     try {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
@@ -275,14 +319,26 @@ export default function InvoiceBuilder() {
         )
       }
 
-      setSuccess(true)
-      setTimeout(() => setSuccess(false), 3000)
+      unsavedChangesRef.current = false
+      setLastSaved(new Date())
+      if (!silent) {
+        setSaveStatus('saved')
+        setSuccess(true)
+        setTimeout(() => { setSaveStatus('idle'); setSuccess(false) }, 3000)
+      }
     } catch (err: any) {
-      setError(err.message || 'Failed to save')
-    } finally {
-      setSaving(false)
+      if (!silent) {
+        setSaveStatus('error')
+        setError(err.message || 'Failed to save')
+        setTimeout(() => setSaveStatus('idle'), 4000)
+      }
     }
   }
+
+  // Handle save (manual)
+  const handleSave = useCallback(() => {
+    performSave(false)
+  }, [selectedCompanyId, invoice, subtotal, vat_total, total])
 
   // Handle send
   const handleSend = async () => {
@@ -430,19 +486,59 @@ export default function InvoiceBuilder() {
     company: selectedCompany,
   }
 
+  // Format last saved time
+  const formatLastSaved = (date: Date) => {
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffSec = Math.floor(diffMs / 1000)
+    if (diffSec < 60) return 'Just now'
+    const diffMin = Math.floor(diffSec / 60)
+    if (diffMin < 60) return `${diffMin}m ago`
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }
+
   return (
     <div>
       {/* Page header */}
-      <div style={{ marginBottom: '28px' }}>
+      <div style={{ marginBottom: '24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <h1 style={{ fontSize: '20px', fontWeight: 700, color: '#FAFAFA', margin: '0 0 4px' }}>New Invoice</h1>
-            <p style={{ fontSize: '13px', color: '#71717A', margin: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <h1 style={{ fontSize: '20px', fontWeight: 700, color: '#FAFAFA', margin: 0 }}>New Invoice</h1>
+              {/* ── Auto-save status indicator ── */}
+              {saveStatus === 'saving' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#71717A' }}>
+                  <div style={{ width: '12px', height: '12px', border: '1.5px solid rgba(255,255,255,0.15)', borderTopColor: '#10b981', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                  <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+                  Saving…
+                </div>
+              )}
+              {saveStatus === 'saved' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: '#10b981', fontWeight: 500 }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  Saved
+                  {lastSaved && <span style={{ color: '#52525B', fontWeight: 400 }}>· {formatLastSaved(lastSaved)}</span>}
+                </div>
+              )}
+              {saveStatus === 'error' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: '#f87171' }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                  Save failed
+                </div>
+              )}
+            </div>
+            <p style={{ fontSize: '13px', color: '#71717A', margin: '4px 0 0' }}>
               {invoice.invoice_number || 'Draft'}
               {invoice.client?.name && <> — {invoice.client.name}</>}
             </p>
           </div>
-          {success && (
+
+          {/* Manual success toast */}
+          {success && saveStatus !== 'saved' && (
             <div style={{
               padding: '8px 16px',
               borderRadius: '8px',
@@ -471,10 +567,21 @@ export default function InvoiceBuilder() {
         </div>
       )}
 
-      {/* 2-column layout */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '24px', alignItems: 'start' }}>
+      {/* 2-column layout — form + preview */}
+      <div style={{
+        display: 'flex',
+        gap: '24px',
+        alignItems: 'flex-start',
+        paddingBottom: showPreview ? '0' : '0',
+      }}>
         {/* Left: form sections */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{
+          flex: 1,
+          minWidth: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px',
+        }}>
           {/* Company selector */}
           {companies.length > 0 && (
             <CompanySelector
@@ -629,80 +736,195 @@ export default function InvoiceBuilder() {
             )}
           </div>
 
-          {/* Action bar */}
-          <div style={{
-            display: 'flex', gap: '10px',
-            padding: '16px',
-            borderRadius: '12px',
-            background: '#18181B',
-            border: '1px solid rgba(255,255,255,0.06)',
-            position: 'sticky', bottom: '24px',
-            zIndex: 10,
-            boxShadow: '0 -4px 24px rgba(0,0,0,0.3)',
-          }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '20px', fontWeight: 700, color: invoice.accent_color || '#10b981' }}>
-                {symbol}{total.toFixed(2)}
-              </div>
-              <div style={{ fontSize: '12px', color: '#71717A' }}>Total</div>
-            </div>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              style={{
-                padding: '12px 20px',
-                borderRadius: '10px',
-                border: '1px solid rgba(255,255,255,0.12)',
-                background: 'rgba(255,255,255,0.05)',
-                color: '#A1A1AA',
-                fontSize: '13px', fontWeight: 500,
-                cursor: saving ? 'wait' : 'pointer',
-                transition: 'all 0.15s',
-                minWidth: '100px',
-              }}
-            >
-              {saving ? 'Saving...' : 'Save draft'}
-            </button>
-            <button
-              onClick={handleSend}
-              disabled={sending}
-              style={{
-                padding: '12px 24px',
-                borderRadius: '10px',
-                border: 'none',
-                background: invoice.accent_color || '#10b981',
-                color: '#fff',
-                fontSize: '13px', fontWeight: 600,
-                cursor: sending ? 'wait' : 'pointer',
-                transition: 'all 0.15s',
-                display: 'flex', alignItems: 'center', gap: '8px',
-              }}
-            >
-              {sending ? (
-                <>
-                  <div style={{ width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                  Sending...
-                </>
-              ) : (
-                <>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                  Send invoice
-                </>
-              )}
-            </button>
-          </div>
+          {/* Spacer to prevent sticky bar from covering last content */}
+          <div style={{ height: '100px' }} />
         </div>
 
         {/* Right: live preview */}
-        <div>
-          <div style={{ position: 'sticky', top: '96px' }}>
-            <div style={{ fontSize: '11px', fontWeight: 600, color: '#52525B', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
-              Live preview — {INVOICE_TEMPLATES.find(t => t.id === selectedTemplateId)?.name}
+        {showPreview && (
+          <div style={{
+            width: '380px',
+            flexShrink: 0,
+          }}>
+            <div style={{ position: 'sticky', top: '96px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: '#52525B', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  Live preview — {INVOICE_TEMPLATES.find(t => t.id === selectedTemplateId)?.name}
+                </div>
+                {/* Eye toggle button */}
+                <button
+                  onClick={() => setShowPreview(false)}
+                  title="Hide preview (Focus mode)"
+                  style={{
+                    width: '28px', height: '28px',
+                    borderRadius: '6px',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    background: 'rgba(255,255,255,0.04)',
+                    color: '#71717A',
+                    cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                </button>
+              </div>
+              <LivePreview invoice={previewInvoice} templateId={selectedTemplateId} />
             </div>
-            <LivePreview invoice={previewInvoice} templateId={selectedTemplateId} />
           </div>
+        )}
+      </div>
+
+      {/* Focus mode banner when preview is hidden */}
+      {!showPreview && (
+        <div style={{
+          position: 'fixed',
+          top: '16px',
+          right: '24px',
+          zIndex: 50,
+          display: 'flex', alignItems: 'center', gap: '10px',
+          padding: '8px 14px',
+          borderRadius: '10px',
+          background: '#18181B',
+          border: '1px solid rgba(255,255,255,0.08)',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+        }}>
+          <span style={{ fontSize: '12px', color: '#A1A1AA', fontWeight: 500 }}>Focus mode</span>
+          <button
+            onClick={() => setShowPreview(true)}
+            title="Show preview"
+            style={{
+              width: '24px', height: '24px',
+              borderRadius: '5px',
+              border: '1px solid rgba(255,255,255,0.1)',
+              background: 'rgba(255,255,255,0.05)',
+              color: '#A1A1AA',
+              cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+          </button>
+        </div>
+      )}
+
+      {/* ── Sticky bottom action bar ── */}
+      <div style={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        zIndex: 40,
+        padding: '12px 24px',
+        background: '#09090B',
+        borderTop: '1px solid rgba(255,255,255,0.06)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        boxShadow: '0 -4px 24px rgba(0,0,0,0.4)',
+      }}>
+        <div style={{
+          maxWidth: '1200px',
+          margin: '0 auto',
+          display: 'flex', alignItems: 'center', gap: '12px',
+        }}>
+          {/* Total */}
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: '20px', fontWeight: 700, color: invoice.accent_color || '#10b981' }}>
+              {symbol}{total.toFixed(2)}
+            </div>
+            <div style={{ fontSize: '12px', color: '#71717A' }}>Total</div>
+          </div>
+
+          {/* Save draft */}
+          <button
+            onClick={handleSave}
+            disabled={saving || saveStatus === 'saving'}
+            title="Save draft (⌘S)"
+            style={{
+              padding: '10px 18px',
+              borderRadius: '10px',
+              border: '1px solid rgba(255,255,255,0.12)',
+              background: 'rgba(255,255,255,0.05)',
+              color: '#A1A1AA',
+              fontSize: '13px', fontWeight: 500,
+              cursor: (saving || saveStatus === 'saving') ? 'wait' : 'pointer',
+              transition: 'all 0.15s',
+              minWidth: '120px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+            }}
+          >
+            {(saving || saveStatus === 'saving') ? (
+              <>
+                <div style={{ width: '13px', height: '13px', border: '2px solid rgba(255,255,255,0.2)', borderTopColor: '#A1A1AA', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                Saving…
+              </>
+            ) : (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
+                  <polyline points="17 21 17 13 7 13 7 21" />
+                  <polyline points="7 3 7 8 15 8" />
+                </svg>
+                Save draft
+                <kbd style={{
+                  padding: '2px 5px',
+                  borderRadius: '4px',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  background: 'rgba(255,255,255,0.06)',
+                  fontSize: '11px',
+                  color: '#71717A',
+                  fontFamily: 'inherit',
+                }}>⌘S</kbd>
+              </>
+            )}
+          </button>
+
+          {/* Send invoice */}
+          <button
+            onClick={handleSend}
+            disabled={sending}
+            title="Send invoice (⌘↵)"
+            style={{
+              padding: '10px 24px',
+              borderRadius: '10px',
+              border: 'none',
+              background: invoice.accent_color || '#10b981',
+              color: '#fff',
+              fontSize: '13px', fontWeight: 600,
+              cursor: sending ? 'wait' : 'pointer',
+              transition: 'all 0.15s',
+              display: 'flex', alignItems: 'center', gap: '8px',
+            }}
+          >
+            {sending ? (
+              <>
+                <div style={{ width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                Sending…
+              </>
+            ) : (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                Send invoice
+                <kbd style={{
+                  padding: '2px 5px',
+                  borderRadius: '4px',
+                  border: '1px solid rgba(255,255,255,0.25)',
+                  background: 'rgba(255,255,255,0.15)',
+                  fontSize: '11px',
+                  color: 'rgba(255,255,255,0.8)',
+                  fontFamily: 'inherit',
+                }}>⌘↵</kbd>
+              </>
+            )}
+          </button>
         </div>
       </div>
     </div>

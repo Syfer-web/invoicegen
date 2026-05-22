@@ -1,7 +1,8 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 
-function useReveal(threshold = 0.15) {
+// ─── Scroll reveal ─────────────────────────────────────────────
+function useReveal(threshold = 0.12) {
   const ref = useRef<HTMLDivElement>(null)
   const [visible, setVisible] = useState(false)
   useEffect(() => {
@@ -33,40 +34,130 @@ function Reveal({ children, delay = 0 }: { children: React.ReactNode; delay?: nu
   )
 }
 
-const CHECK = (
+// ─── Icons ─────────────────────────────────────────────────────
+const CheckIcon = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
     <path d="M5 12l5 5L20 7" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>
 )
 
-const FREE_FEATURES = ['5 invoices/month', '1 company', 'PDF export', 'Email support']
-const PRO_FEATURES = ['50 invoices/month', '3 companies', 'Stripe payments', 'Automated reminders', 'VIES validation', 'Priority support']
+// ─── Data ─────────────────────────────────────────────────────
+const FREE_FEATURES  = ['5 invoices/month', '1 company', 'PDF export', 'Email support']
+const PRO_FEATURES   = ['50 invoices/month', '3 companies', 'Stripe payments', 'Automated reminders', 'VIES validation', 'Priority support']
 const SCALE_FEATURES = ['Unlimited invoices', 'Unlimited companies', 'Custom branding', 'API access', 'White-label invoices', 'Dedicated account manager']
 
-function PlanCard({ name, price, period, desc, features, cta, ctaHref, highlight = false, delay = 0 }: any) {
+// ─── Plan card ─────────────────────────────────────────────────
+function PlanCard({
+  name, price, period, desc, features, cta, ctaHref,
+  variant = 'default', // 'default' | 'pro' | 'scale'
+  delay = 0,
+}: {
+  name: string; price: string; period: string; desc: string;
+  features: string[]; cta: string; ctaHref: string;
+  variant?: 'default' | 'pro' | 'scale';
+  delay?: number;
+}) {
+  const isPro = variant === 'pro'
+
   return (
     <Reveal delay={delay}>
-      <div className={`pricing-card${highlight ? ' pricing-card-pro' : ''}`}>
-        <div className="pricing-card-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {highlight && (
-              <div className="pricing-badge">Most popular</div>
-            )}
-            <div className="pricing-plan-name">{name}</div>
+      <div style={{
+        padding: '28px 24px',
+        borderRadius: 20,
+        background: isPro ? '#111' : '#18181B',
+        border: isPro ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(255,255,255,0.07)',
+        borderLeft: isPro ? '3px solid #10b981' : '1px solid rgba(255,255,255,0.07)',
+        boxShadow: isPro
+          ? '0 0 0 1px rgba(16,185,129,0.12), 0 0 40px rgba(16,185,129,0.08), inset 0 1px 0 rgba(16,185,129,0.1)'
+          : 'none',
+        display: 'flex',
+        flexDirection: 'column',
+        position: 'relative',
+        opacity: variant === 'scale' ? 0.65 : 1,
+        transition: 'opacity 0.2s ease',
+      }}
+      onMouseEnter={e => {
+        if (variant === 'scale') (e.currentTarget as HTMLDivElement).style.opacity = '1'
+      }}
+      onMouseLeave={e => {
+        if (variant === 'scale') (e.currentTarget as HTMLDivElement).style.opacity = '0.65'
+      }}
+      >
+        {/* Top shimmer for Pro */}
+        {isPro && (
+          <div style={{
+            position: 'absolute', top: 0, left: 24, right: 24, height: 1,
+            background: 'linear-gradient(90deg, transparent, rgba(16,185,129,0.5), transparent)',
+          }} />
+        )}
+
+        {/* Header */}
+        <div style={{ marginBottom: 20 }}>
+          {isPro && (
+            <div style={{
+              display: 'inline-block',
+              padding: '3px 10px',
+              borderRadius: 100,
+              background: 'rgba(16,185,129,0.12)',
+              border: '1px solid rgba(16,185,129,0.2)',
+              fontSize: 10, fontWeight: 700, color: '#10b981',
+              letterSpacing: '0.08em', textTransform: 'uppercase',
+              marginBottom: 12,
+            }}>
+              Most popular
+            </div>
+          )}
+          <div style={{
+            fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
+            textTransform: 'uppercase', color: isPro ? '#10b981' : '#555',
+          }}>
+            {name}
           </div>
         </div>
-        <div className="pricing-price">
-          <span className="pricing-price-value">{price}</span>
-          <span className="pricing-price-period">/{period}</span>
+
+        {/* Price */}
+        <div style={{ marginBottom: 8 }}>
+          <span style={{
+            fontSize: 'clamp(2rem, 5vw, 2.8rem)',
+            fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1,
+            color: isPro ? '#f5f5f5' : '#e0e0e0',
+          }}>
+            {price}
+          </span>
+          <span style={{ fontSize: 13, color: '#555' }}>/{period}</span>
         </div>
-        <p className="pricing-desc">{desc}</p>
-        <a href={ctaHref} className={highlight ? 'btn-primary' : 'btn-ghost'} style={{ width: '100%', justifyContent: 'center', marginBottom: 24 }}>
+
+        {/* Desc */}
+        <p style={{ fontSize: 13, color: '#666', lineHeight: 1.6, marginBottom: 24 }}>
+          {desc}
+        </p>
+
+        {/* CTA */}
+        <a
+          href={ctaHref}
+          style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            padding: '13px 20px',
+            borderRadius: 10,
+            fontSize: 14, fontWeight: 600,
+            background: isPro ? '#10b981' : 'rgba(255,255,255,0.06)',
+            color: isPro ? '#000' : '#a0a0a0',
+            border: isPro ? 'none' : '1px solid rgba(255,255,255,0.1)',
+            textDecoration: 'none',
+            marginBottom: 28,
+            transition: 'opacity 0.15s ease',
+          }}
+          onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.opacity = '0.8'}
+          onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.opacity = '1'}
+        >
           {cta}
         </a>
-        <ul className="pricing-features">
-          {features.map((f: string, i: number) => (
-            <li key={i} className="pricing-feature-item">
-              {CHECK} {f}
+
+        {/* Features */}
+        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {features.map((f, i) => (
+            <li key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: '#a0a0a0' }}>
+              <CheckIcon /> {f}
             </li>
           ))}
         </ul>
@@ -75,12 +166,18 @@ function PlanCard({ name, price, period, desc, features, cta, ctaHref, highlight
   )
 }
 
+// ─── Pricing section ───────────────────────────────────────────
 export default function Pricing({ region, prices, symbol }: { region: string; prices: any; symbol: string }) {
   const [annual, setAnnual] = useState(false)
 
   return (
-    <section style={{ padding: '80px 16px', borderTop: '1px solid var(--border)' }}>
+    <section style={{
+      padding: 'clamp(60px, 8vw, 120px) clamp(16px, 5vw, 80px)',
+      borderTop: '1px solid rgba(255,255,255,0.07)',
+      background: '#09090B',
+    }}>
       <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+        {/* Header */}
         <Reveal>
           <div style={{ textAlign: 'center', marginBottom: 48 }}>
             <div className="label-caps" style={{ marginBottom: 12 }}>Pricing</div>
@@ -92,21 +189,63 @@ export default function Pricing({ region, prices, symbol }: { region: string; pr
             </p>
 
             {/* Toggle */}
-            <div className="pricing-toggle">
-              {[{ label: 'Monthly', value: false }, { label: 'Annual', value: true }].map(t => (
-                <button
-                  key={String(t.value)}
-                  onClick={() => setAnnual(t.value)}
-                  className={`pricing-toggle-btn${annual === t.value ? ' active' : ''}`}
-                >
-                  {t.label}
-                </button>
-              ))}
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 0,
+              padding: 4,
+              borderRadius: 100,
+              background: '#18181B',
+              border: '1px solid rgba(255,255,255,0.08)',
+            }}>
+              <button
+                onClick={() => setAnnual(false)}
+                style={{
+                  padding: '8px 20px',
+                  borderRadius: 100,
+                  fontSize: 13, fontWeight: 600,
+                  border: 'none', cursor: 'pointer',
+                  background: !annual ? '#10b981' : 'transparent',
+                  color: !annual ? '#000' : '#666',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                Monthly
+              </button>
+              <button
+                onClick={() => setAnnual(true)}
+                style={{
+                  padding: '8px 20px',
+                  borderRadius: 100,
+                  fontSize: 13, fontWeight: 600,
+                  border: 'none', cursor: 'pointer',
+                  background: annual ? '#10b981' : 'transparent',
+                  color: annual ? '#000' : '#666',
+                  transition: 'all 0.15s ease',
+                  display: 'flex', alignItems: 'center', gap: 6,
+                }}
+              >
+                Annual
+                {annual && (
+                  <span style={{
+                    background: 'rgba(0,0,0,0.2)',
+                    borderRadius: 100,
+                    padding: '2px 7px',
+                    fontSize: 10, fontWeight: 700,
+                  }}>
+                    −20%
+                  </span>
+                )}
+              </button>
             </div>
           </div>
         </Reveal>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }} className="pricing-grid">
+        {/* Cards */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: 16,
+        }} className="pricing-grid">
+          {/* Free */}
           <PlanCard
             name="Free"
             price="€0"
@@ -115,8 +254,10 @@ export default function Pricing({ region, prices, symbol }: { region: string; pr
             features={FREE_FEATURES}
             cta="Get started free"
             ctaHref="/signup"
+            variant="default"
             delay={0}
           />
+          {/* Pro — dominant */}
           <PlanCard
             name="Pro"
             price={`${symbol}${annual ? prices.pro_annual : prices.pro}`}
@@ -125,9 +266,10 @@ export default function Pricing({ region, prices, symbol }: { region: string; pr
             features={PRO_FEATURES}
             cta="Start Pro →"
             ctaHref="/signup?plan=pro"
-            highlight={true}
+            variant="pro"
             delay={80}
           />
+          {/* Scale — muted */}
           <PlanCard
             name="Scale"
             price={`${symbol}${annual ? prices.scale_annual : prices.scale}`}
@@ -136,130 +278,27 @@ export default function Pricing({ region, prices, symbol }: { region: string; pr
             features={SCALE_FEATURES}
             cta="Contact sales"
             ctaHref="mailto:hello@invoicegen.app"
+            variant="scale"
             delay={160}
           />
         </div>
 
+        {/* Footer note */}
         <Reveal>
-          <p style={{ textAlign: 'center', marginTop: 32, fontSize: 11, color: 'var(--text-5)' }}>
+          <p style={{
+            textAlign: 'center', marginTop: 32,
+            fontSize: 11, color: '#444',
+          }}>
             All prices exclude local VAT. Monthly plans billed month-to-month. Annual plans billed annually.
           </p>
         </Reveal>
       </div>
 
       <style>{`
-        .pricing-card {
-          padding: 28px 24px;
-          border: 1px solid var(--border);
-          border-radius: var(--radius-xl);
-          background: var(--bg-1);
-          display: flex;
-          flex-direction: column;
-        }
-        .pricing-card-pro {
-          border-color: rgba(16,185,129,0.2);
-          background: var(--bg-2);
-          box-shadow: 0 0 0 1px rgba(16,185,129,0.15), inset 0 0 60px rgba(16,185,129,0.03);
-          position: relative;
-        }
-        .pricing-card-pro::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 24px;
-          right: 24px;
-          height: 1px;
-          background: linear-gradient(90deg, transparent, rgba(16,185,129,0.4), transparent);
-        }
-        .pricing-card-header {
-          margin-bottom: 20px;
-        }
-        .pricing-plan-name {
-          font-size: 11px;
-          font-weight: 700;
-          letter-spacing: 0.1em;
-          text-transform: uppercase;
-          color: var(--text-4);
-        }
-        .pricing-card-pro .pricing-plan-name {
-          color: var(--accent);
-        }
-        .pricing-badge {
-          padding: 3px 8px;
-          border-radius: 100px;
-          background: rgba(16,185,129,0.12);
-          font-size: 10px;
-          font-weight: 700;
-          color: var(--accent);
-          margin-right: 8px;
-        }
-        .pricing-price {
-          margin-bottom: 12px;
-        }
-        .pricing-price-value {
-          font-size: clamp(2rem, 5vw, 2.8rem);
-          font-weight: 800;
-          letter-spacing: -0.04em;
-          line-height: 1;
-        }
-        .pricing-price-period {
-          font-size: 13px;
-          color: var(--text-4);
-        }
-        .pricing-desc {
-          font-size: 13px;
-          color: var(--text-3);
-          line-height: 1.6;
-          margin-bottom: 20px;
-        }
-        .pricing-features {
-          list-style: none;
-          padding: 0;
-          margin: 0;
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-        .pricing-feature-item {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          font-size: 13px;
-          color: var(--text-2);
-        }
-
-        .pricing-toggle {
-          display: inline-flex;
-          align-items: center;
-          gap: 0;
-          padding: 4px;
-          border-radius: 100px;
-          background: var(--bg-2);
-          border: 1px solid var(--border);
-        }
-        .pricing-toggle-btn {
-          padding: 8px 20px;
-          border-radius: 100px;
-          font-size: 13px;
-          font-weight: 600;
-          border: none;
-          cursor: pointer;
-          transition: all 0.15s ease;
-          background: transparent;
-          color: var(--text-3);
-        }
-        .pricing-toggle-btn.active {
-          background: var(--accent);
-          color: #000;
-        }
-
         @media (max-width: 768px) {
           .pricing-grid {
             grid-template-columns: 1fr !important;
             gap: 12px !important;
-          }
-          .pricing-card {
-            padding: 24px 20px;
           }
         }
       `}</style>
