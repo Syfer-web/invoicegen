@@ -15,14 +15,11 @@ export default function Login() {
     e.preventDefault()
     setLoading(true)
     setError('')
-
     try {
       if (method === 'magic_link') {
         const { error } = await supabase.auth.signInWithOtp({
           email,
-          options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
-          },
+          options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
         })
         if (error) throw error
         setSent(true)
@@ -41,32 +38,33 @@ export default function Login() {
   if (sent) {
     return (
       <div>
-        {/* Icon */}
-        <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-xl bg-white/[0.04] border border-white/[0.07]">
-          <svg className="h-[18px] w-[18px] text-emerald-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5H4.5A2.25 2.25 0 002.25 6.75m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+        <div style={{
+          width: '40px', height: '40px',
+          background: 'rgba(16,185,129,0.1)',
+          borderRadius: '10px',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          marginBottom: '16px',
+        }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5H4.5A2.25 2.25 0 002.25 6.75m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
           </svg>
         </div>
-
-        {/* Success message */}
-        <h2 className="text-[15px] font-semibold text-white leading-snug tracking-tight mb-1">
+        <h2 style={{ fontSize: '15px', fontWeight: 600, color: '#111', margin: '0 0 6px', letterSpacing: '-0.01em' }}>
           Check your email
         </h2>
-        <p className="text-[13px] text-white/40 leading-relaxed mb-5">
+        <p style={{ fontSize: '13px', color: '#666', margin: '0 0 16px', lineHeight: '1.5' }}>
           We sent a sign-in link to<br />
-          <span className="text-white/70 font-medium">{email}</span>
+          <span style={{ color: '#111', fontWeight: 500 }}>{email}</span>
         </p>
-
-        {/* Help text */}
-        <div className="rounded-lg bg-white/[0.03] border border-white/[0.05] px-4 py-3">
-          <p className="text-[12px] text-white/30 leading-relaxed">
-            Click the link in the email — it expires in 1 hour. Check your spam folder if it doesn&apos;t arrive.
-          </p>
+        <div style={{
+          background: '#f5f5f5', borderRadius: '8px', padding: '12px',
+          fontSize: '12px', color: '#888', lineHeight: '1.5',
+        }}>
+          Click the link in the email — it expires in 1 hour. Check your spam folder if it doesn&apos;t arrive.
         </div>
-
         <button
           onClick={() => setSent(false)}
-          className="mt-4 text-[12px] text-white/30 hover:text-emerald-400/80 transition-colors"
+          style={{ marginTop: '12px', fontSize: '12px', color: '#888', background: 'none', border: 'none', cursor: 'pointer' }}
         >
           ← Use a different email
         </button>
@@ -75,71 +73,92 @@ export default function Login() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3">
-      {/* Error */}
+    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
       {error && (
-        <div className="rounded-lg bg-red-500/8 border border-red-500/20 px-3.5 py-2.5">
-          <p className="text-[12px] text-red-400 leading-snug">{error}</p>
+        <div style={{
+          background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px',
+          padding: '10px 12px', fontSize: '12px', color: '#dc2626',
+        }}>
+          {error}
         </div>
       )}
 
-      {/* Email input */}
-      <div>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email address"
-          required
-          className="w-full rounded-lg border border-white/[0.08] bg-white/[0.03] px-3.5 py-2.5 text-[13px] text-white placeholder-white/25 transition-all focus:border-emerald-500/40 focus:bg-white/[0.04] focus:outline-none focus:ring-1 focus:ring-emerald-500/15"
-        />
-      </div>
+      <input
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="Email address"
+        required
+        style={{
+          width: '100%', boxSizing: 'border-box',
+          padding: '10px 12px', fontSize: '14px',
+          border: '1px solid #e5e5e5', borderRadius: '8px',
+          background: '#fff', color: '#111',
+          outline: 'none', transition: 'border-color 0.15s',
+          fontFamily: 'inherit',
+        }}
+        onFocus={(e) => e.target.style.borderColor = '#10b981'}
+        onBlur={(e) => e.target.style.borderColor = '#e5e5e5'}
+      />
 
-      {/* Password — only shown in password mode */}
       {method === 'password' && (
-        <div>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password"
-            required
-            className="w-full rounded-lg border border-white/[0.08] bg-white/[0.03] px-3.5 py-2.5 text-[13px] text-white placeholder-white/25 transition-all focus:border-emerald-500/40 focus:bg-white/[0.04] focus:outline-none focus:ring-1 focus:ring-emerald-500/15"
-          />
-        </div>
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Password"
+          required
+          style={{
+            width: '100%', boxSizing: 'border-box',
+            padding: '10px 12px', fontSize: '14px',
+            border: '1px solid #e5e5e5', borderRadius: '8px',
+            background: '#fff', color: '#111',
+            outline: 'none', transition: 'border-color 0.15s',
+            fontFamily: 'inherit',
+          }}
+          onFocus={(e) => e.target.style.borderColor = '#10b981'}
+          onBlur={(e) => e.target.style.borderColor = '#e5e5e5'}
+        />
       )}
 
-      {/* Submit button */}
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded-lg bg-emerald-500 py-2.5 text-[13px] font-semibold text-black transition-all hover:bg-emerald-400 active:scale-[0.99] disabled:opacity-40"
+        style={{
+          width: '100%', padding: '11px',
+          background: '#111', color: '#fff',
+          fontSize: '14px', fontWeight: 600,
+          border: 'none', borderRadius: '8px',
+          cursor: loading ? 'not-allowed' : 'pointer',
+          opacity: loading ? 0.5 : 1,
+          fontFamily: 'inherit',
+          transition: 'opacity 0.15s',
+        }}
       >
         {loading ? 'Signing in...' : method === 'password' ? 'Sign in' : 'Send sign-in link'}
       </button>
 
-      {/* Divider */}
-      <div className="relative py-1">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-white/[0.05]" />
-        </div>
-        <div className="relative flex justify-center">
-          <span className="bg-[#0f1011] px-3 text-[11px] text-white/20 uppercase tracking-widest font-medium">
-            or
-          </span>
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '4px 0' }}>
+        <div style={{ flex: 1, height: '1px', background: '#e5e5e5' }} />
+        <span style={{ fontSize: '11px', color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.08em' }}>or</span>
+        <div style={{ flex: 1, height: '1px', background: '#e5e5e5' }} />
       </div>
 
-      {/* Method toggle */}
       <button
         type="button"
-        onClick={() => {
-          setMethod(method === 'password' ? 'magic_link' : 'password')
-          setError('')
+        onClick={() => { setMethod(method === 'password' ? 'magic_link' : 'password'); setError('') }}
+        style={{
+          width: '100%', padding: '10px',
+          background: '#fff', color: '#666',
+          fontSize: '13px', fontWeight: 500,
+          border: '1px solid #e5e5e5', borderRadius: '8px',
+          cursor: 'pointer', fontFamily: 'inherit',
+          transition: 'background 0.15s',
         }}
-        className="w-full rounded-lg border border-white/[0.08] bg-white/[0.02] py-2.5 text-[12px] text-white/50 hover:bg-white/[0.04] hover:text-white/70 transition-all"
+        onMouseOver={(e) => e.currentTarget.style.background = '#f5f5f5'}
+        onMouseOut={(e) => e.currentTarget.style.background = '#fff'}
       >
-        {method === 'password' ? 'Sign in with magic link instead' : 'Sign in with password instead'}
+        {method === 'password' ? 'Sign in with magic link' : 'Sign in with password'}
       </button>
     </form>
   )
