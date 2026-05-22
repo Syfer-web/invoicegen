@@ -9,13 +9,17 @@ interface Props {
   client: Client
   onChange: (client: Client) => void
   savedClients: { id: string; name: string; company: string; email: string }[]
+  onClientSaved?: (client: { id: string; name: string; company: string; email: string }) => void
 }
 
-export default function ClientSection({ client, onChange, savedClients }: Props) {
+export default function ClientSection({ client, onChange, savedClients, onClientSaved }: Props) {
   const [mode, setMode] = useState<'select' | 'new'>('select')
   const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [local, setLocal] = useState<Client>(client)
+  const [savingClient, setSavingClient] = useState(false)
+  const [clientSaved, setClientSaved] = useState(false)
+  const [clientError, setClientError] = useState('')
 
   const filtered = savedClients.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -27,6 +31,8 @@ export default function ClientSection({ client, onChange, savedClients }: Props)
     const updated = { ...local, [field]: value }
     setLocal(updated)
     onChange(updated)
+    setClientSaved(false)
+    setClientError('')
   }
 
   const selectClient = (saved: typeof savedClients[0]) => {
@@ -34,6 +40,60 @@ export default function ClientSection({ client, onChange, savedClients }: Props)
     setLocal(full)
     onChange(full)
     setShowForm(true)
+    setClientSaved(false)
+    setClientError('')
+  }
+
+  const handleSaveClient = async () => {
+    if (!local.name || !local.email) {
+      setClientError('Name and email are required to save.')
+      return
+    }
+    setSavingClient(true)
+    setClientError('')
+    try {
+      const { createClient } = require('@supabase/supabase-js')
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      )
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not authenticated')
+
+      // Get first company
+      const { data: companies } = await supabase
+        .from('companies').select('id').eq('user_id', user.id).eq('is_active', true).limit(1)
+      const companyId = companies?.[0]?.id
+      if (!companyId) throw new Error('No company found')
+
+      const { data: saved, error } = await supabase
+        .from('clients')
+        .upsert({
+          company_id: companyId,
+          name: local.name,
+          company: local.company || null,
+          email: local.email,
+          address: local.address || null,
+          city: local.city || null,
+          postcode: local.postcode || null,
+          country: local.country || null,
+          vat_number: local.vat_number || null,
+          phone: local.phone || null,
+        }, { onConflict: 'company_id,email' })
+        .select('id, name, company, email')
+        .single()
+
+      if (error) throw error
+      if (saved && onClientSaved) {
+        onClientSaved(saved)
+      }
+      setClientSaved(true)
+      setTimeout(() => setClientSaved(false), 3000)
+    } catch (err: any) {
+      setClientError(err.message || 'Failed to save client')
+    } finally {
+      setSavingClient(false)
+    }
   }
 
   const fieldStyle: React.CSSProperties = {
@@ -192,14 +252,37 @@ export default function ClientSection({ client, onChange, savedClients }: Props)
                 <input type="text" value={local.vat_number} onChange={e => update('vat_number', e.target.value)} placeholder="NL001234567B01" style={fieldStyle} />
               </div>
             </div>
-            <button
-              onClick={() => setShowForm(false)}
-              style={{
-                marginTop: '12px', padding: '6px 12px',
-                borderRadius: '6px', border: '1px solid rgba(255,255,255,0.08)',
-                background: 'transparent', color: '#71717A', fontSize: '12px', cursor: 'pointer',
-              }}
-            >Collapse</button>
+            {clientError && (
+              <p style={{ fontSize: '12px', color: '#F87171', marginTop: '8px' }}>{clientError}</p>
+            )}
+            {clientSaved && (
+              <p style={{ fontSize: '12px', color: '#10b981', marginTop: '8px' }}>Client saved ✓ — available in your client list</p>
+            )}
+
+            <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+              <button
+                onClick={handleSaveClient}
+                disabled={savingClient || !local.name || !local.email}
+                style={{
+                  flex: 1, padding: '8px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(16,185,129,0.4)',
+                  background: (!local.name || !local.email || savingClient) ? 'rgba(16,185,129,0.1)' : 'rgba(16,185,129,0.15)',
+                  color: (!local.name || !local.email) ? 'rgba(16,185,129,0.5)' : '#10b981',
+                  fontSize: '12px', fontWeight: 600, cursor: (!local.name || !local.email || savingClient) ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {savingClient ? 'Saving...' : 'Save client'}
+              </button>
+              <button
+                onClick={() => setShowForm(false)}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)',
+                  background: 'transparent', color: '#71717A', fontSize: '12px', cursor: 'pointer',
+                }}
+              >Collapse</button>
+            </div>
           </div>
         )}
       </div>

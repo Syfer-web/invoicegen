@@ -11,11 +11,17 @@ interface Props {
   currency: Currency
   defaultVatRate: number
   savedProducts: { id: string; name: string; unit_price: number; unit: string; vat_rate: number }[]
+  onProductSaved?: (product: { id: string; name: string; unit_price: number; unit: string; vat_rate: number }) => void
 }
 
-export default function LineItemsSection({ items, onChange, currency, defaultVatRate, savedProducts }: Props) {
+export default function LineItemsSection({ items, onChange, currency, defaultVatRate, savedProducts, onProductSaved }: Props) {
   const [showCatalog, setShowCatalog] = useState(false)
   const [productSearch, setProductSearch] = useState('')
+  const [showProductModal, setShowProductModal] = useState(false)
+  const [productForm, setProductForm] = useState({ name: '', unit_price: 0, unit: 'item', category: 'Services', vat_rate: 21 })
+  const [savingProduct, setSavingProduct] = useState(false)
+  const [productSaved, setProductSaved] = useState(false)
+  const [productError, setProductError] = useState('')
   const [focusedCell, setFocusedCell] = useState<{ row: number; field: string } | null>(null)
   const cellInputRef = useRef<HTMLInputElement | null>(null)
   const symbol = CURRENCY_SYMBOLS[currency]
@@ -38,6 +44,46 @@ export default function LineItemsSection({ items, onChange, currency, defaultVat
     setTimeout(() => {
       setFocusedCell({ row: newItems.length - 1, field: 'description' })
     }, 50)
+  }
+
+  const handleSaveProduct = async () => {
+    if (!productForm.name || !productForm.unit_price) {
+      setProductError('Name and price are required.')
+      return
+    }
+    setSavingProduct(true)
+    setProductError('')
+    try {
+      const { createClient } = require('@supabase/supabase-js')
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      )
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not authenticated')
+      const { data: companies } = await supabase.from('companies').select('id').eq('user_id', user.id).eq('is_active', true).limit(1)
+      const companyId = companies?.[0]?.id
+      if (!companyId) throw new Error('No company found')
+
+      const { data: saved, error } = await supabase.from('products').insert({
+        company_id: companyId,
+        name: productForm.name,
+        unit_price: productForm.unit_price,
+        unit: productForm.unit,
+        category: productForm.category,
+        vat_rate: productForm.vat_rate,
+        is_active: true,
+      }).select('id, name, unit_price, unit, vat_rate').single()
+
+      if (error) throw error
+      if (saved && onProductSaved) onProductSaved(saved)
+      setProductSaved(true)
+      setTimeout(() => setProductSaved(false), 3000)
+    } catch (err: any) {
+      setProductError(err.message || 'Failed to save product')
+    } finally {
+      setSavingProduct(false)
+    }
   }
 
   const removeItem = (index: number) => {
@@ -271,6 +317,7 @@ export default function LineItemsSection({ items, onChange, currency, defaultVat
           background: 'rgba(16,185,129,0.04)',
           borderBottom: '1px solid rgba(255,255,255,0.06)',
         }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
           <input
             type="text"
             value={productSearch}
@@ -278,18 +325,33 @@ export default function LineItemsSection({ items, onChange, currency, defaultVat
             placeholder="Search products..."
             style={catalogInputStyle}
           />
-          <div style={{ maxHeight: '160px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            {filtered.length === 0 && (
-              <p style={{ fontSize: '12px', color: '#52525B', textAlign: 'center', padding: '12px' }}>
-                No products found
-              </p>
-            )}
+          <button
+            onClick={() => { setShowProductModal(true); setProductForm({ name: '', unit_price: 0, unit: 'item', category: 'Services', vat_rate: 21 }); setProductError('') }}
+            style={{
+              padding: '8px 14px', borderRadius: '8px',
+              border: '1px solid rgba(16,185,129,0.4)',
+              background: 'rgba(16,185,129,0.1)', color: '#10b981',
+              fontSize: '12px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
+            }}
+          >+ New product</button>
+        </div>
+        <div style={{ maxHeight: '160px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          {filtered.length === 0 && !productSearch && (
+            <p style={{ fontSize: '12px', color: '#52525B', textAlign: 'center', padding: '12px' }}>
+              No saved products yet — add one above.
+            </p>
+          )}
             {filtered.map(p => (
               <button key={p.id} onClick={() => addItem(p)} style={catalogBtnStyle}>
                 <span style={{ fontSize: '13px', color: '#FAFAFA' }}>{p.name}</span>
                 <span style={{ fontSize: '12px', color: '#71717A' }}>{symbol}{p.unit_price.toFixed(2)}</span>
               </button>
             ))}
+            {filtered.length === 0 && productSearch && (
+              <p style={{ fontSize: '12px', color: '#52525B', textAlign: 'center', padding: '8px' }}>
+                No products match — click "New product" above.
+              </p>
+            )}
           </div>
         </div>
       )}
@@ -453,6 +515,85 @@ export default function LineItemsSection({ items, onChange, currency, defaultVat
           </div>
         </div>
       </div>
+
+      {/* New product modal */}
+      {showProductModal && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 100,
+          background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px',
+        }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowProductModal(false) }}
+        >
+          <div style={{
+            background: '#18181B', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)',
+            padding: '28px', width: '100%', maxWidth: '420px',
+            boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+          }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#fff', margin: '0 0 20px' }}>New product</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#A1A1AA', marginBottom: '6px' }}>Product name *</label>
+                <input type="text" value={productForm.name}
+                  onChange={e => setProductForm(p => ({ ...p, name: e.target.value }))}
+                  placeholder="Web design services"
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', color: '#FAFAFA', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#A1A1AA', marginBottom: '6px' }}>Unit price *</label>
+                  <input type="number" value={productForm.unit_price || ''}
+                    onChange={e => setProductForm(p => ({ ...p, unit_price: parseFloat(e.target.value) || 0 }))}
+                    placeholder="0.00"
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', color: '#FAFAFA', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#A1A1AA', marginBottom: '6px' }}>Unit</label>
+                  <select value={productForm.unit}
+                    onChange={e => setProductForm(p => ({ ...p, unit: e.target.value }))}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', background: '#18181B', color: '#FAFAFA', fontSize: '14px', outline: 'none' }}>
+                    <option value="item">per item</option>
+                    <option value="hour">per hour</option>
+                    <option value="day">per day</option>
+                    <option value="project">per project</option>
+                  </select>
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#A1A1AA', marginBottom: '6px' }}>Category</label>
+                  <select value={productForm.category}
+                    onChange={e => setProductForm(p => ({ ...p, category: e.target.value }))}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', background: '#18181B', color: '#FAFAFA', fontSize: '14px', outline: 'none' }}>
+                    <option value="Services">Services</option>
+                    <option value="Products">Products</option>
+                    <option value="Custom">Custom</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#A1A1AA', marginBottom: '6px' }}>VAT rate %</label>
+                  <input type="number" value={productForm.vat_rate}
+                    onChange={e => setProductForm(p => ({ ...p, vat_rate: parseFloat(e.target.value) || 0 }))}
+                    placeholder="21"
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', color: '#FAFAFA', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+              </div>
+              {productError && <p style={{ fontSize: '12px', color: '#F87171', margin: 0 }}>{productError}</p>}
+              {productSaved && <p style={{ fontSize: '12px', color: '#10b981', margin: 0 }}>Product saved ✓</p>}
+              <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
+                <button onClick={handleSaveProduct} disabled={savingProduct}
+                  style={{ flex: 1, padding: '10px', borderRadius: '10px', border: 'none', background: '#10b981', color: '#fff', fontSize: '14px', fontWeight: 600, cursor: savingProduct ? 'wait' : 'pointer' }}>
+                  {savingProduct ? 'Saving...' : 'Save product'}
+                </button>
+                <button onClick={() => setShowProductModal(false)}
+                  style={{ padding: '10px 16px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#71717A', fontSize: '14px', cursor: 'pointer' }}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

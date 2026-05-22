@@ -657,6 +657,13 @@ export default function InvoiceBuilder() {
             client={invoice.client || createEmptyClient()}
             onChange={client => setInvoice(prev => ({ ...prev, client }))}
             savedClients={savedClients}
+            onClientSaved={(saved) => {
+              setSavedClients(prev => {
+                const exists = prev.find(c => c.id === saved.id)
+                if (exists) return prev.map(c => c.id === saved.id ? saved : c)
+                return [...prev, saved]
+              })
+            }}
           />
 
           <LineItemsSection
@@ -665,6 +672,13 @@ export default function InvoiceBuilder() {
             currency={invoice.currency as Currency || 'EUR'}
             defaultVatRate={selectedCompany?.default_vat_rate || 21}
             savedProducts={savedProducts}
+            onProductSaved={(saved) => {
+              setSavedProducts(prev => {
+                const exists = prev.find(p => p.id === saved.id)
+                if (exists) return prev.map(p => p.id === saved.id ? saved : p)
+                return [...prev, saved]
+              })
+            }}
           />
 
           <TaxDiscountsSection
