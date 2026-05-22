@@ -2,9 +2,11 @@
 
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
 
 // build trigger
 export default function Login() {
+  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [method, setMethod] = useState<'password' | 'magic_link'>('password')
@@ -27,7 +29,8 @@ export default function Login() {
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw error
-        window.location.href = '/dashboard'
+        // Use router.push for SPA navigation — no full page reload
+        router.push('/dashboard')
       }
     } catch (err: any) {
       setError(err.message || 'Something went wrong')
