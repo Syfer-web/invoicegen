@@ -7,14 +7,11 @@ export default function CallbackPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    // Parse tokens from hash fragment (#access_token=...&refresh_token=...)
-    const hash = window.location.hash.substring(1) // remove leading #
+    const hash = window.location.hash.substring(1)
     const params = new URLSearchParams(hash)
-
     const accessToken = params.get('access_token')
     const refreshToken = params.get('refresh_token')
-    const expiresIn = parseInt(params.get('expires_in') || '3600')
-    const providerToken = params.get('provider_token')
+    const code = new URLSearchParams(window.location.search).get('code')
 
     if (accessToken && refreshToken) {
       supabase.auth.setSession({
@@ -27,32 +24,24 @@ export default function CallbackPage() {
           window.location.href = '/dashboard'
         }
       })
+    } else if (code) {
+      supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
+        if (error) {
+          setError(error.message)
+        } else {
+          window.location.href = '/dashboard'
+        }
+      })
     } else {
-      // Try code exchange (magic link flow)
-      const code = new URLSearchParams(window.location.search).get('code')
-      if (code) {
-        supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
-          if (error) {
-            setError(error.message)
-          } else {
-            window.location.href = '/dashboard'
-          }
-        })
-      } else {
-        setError('no_token')
-      }
+      setError('no_token')
     }
   }, [])
 
   if (error) {
     return (
       <div style={{ textAlign: 'center', padding: '40px 0' }}>
-        <p style={{ fontSize: '14px', color: '#dc2626' }}>
-          Auth failed: {error}
-        </p>
-        <a href="/login" style={{ fontSize: '13px', color: '#10b981', textDecoration: 'none', marginTop: '8px', display: 'inline-block' }}>
-          ← Back to login
-        </a>
+        <p style={{ fontSize: '14px', color: '#dc2626' }}>Auth failed: {error}</p>
+        <a href="/login" style={{ fontSize: '13px', color: '#10b981', textDecoration: 'none', marginTop: '8px', display: 'inline-block' }}>← Back to login</a>
       </div>
     )
   }

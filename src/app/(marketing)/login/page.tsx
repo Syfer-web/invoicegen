@@ -19,7 +19,7 @@ export default function Login() {
       if (method === 'magic_link') {
         const { error } = await supabase.auth.signInWithOtp({
           email,
-          options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+          options: { emailRedirectTo: `${window.location.origin}/api/auth/callback` },
         })
         if (error) throw error
         setSent(true)
@@ -147,7 +147,7 @@ export default function Login() {
           try {
             const { error } = await supabase.auth.signInWithOAuth({
               provider: 'google',
-              options: { redirectTo: `${window.location.origin}/auth/callback` },
+              options: { redirectTo: `${window.location.origin}/api/auth/callback` },
             })
             if (error) throw error
           } catch (err: any) {
