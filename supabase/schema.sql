@@ -108,10 +108,64 @@ create table if not exists public.invoice_items (
 );
 
 -- =============================================
+-- PRODUCTS / SERVICES CATALOG
+-- =============================================
+create table if not exists public.products (
+  id uuid default gen_random_uuid() primary key,
+  company_id uuid references public.companies(id) on delete cascade not null,
+  name text not null,
+  description text,
+  unit_price numeric(12,2) not null default 0,
+  unit text default 'item',
+  category text,
+  vat_rate numeric(5,2) default 0,
+  sort_order integer default 0,
+  is_active boolean default true,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+-- =============================================
+-- BANK DETAILS
+-- =============================================
+create table if not exists public.bank_details (
+  id uuid default gen_random_uuid() primary key,
+  company_id uuid references public.companies(id) on delete cascade not null,
+  account_holder text,
+  bank_name text,
+  iban text,
+  swift_bic text,
+  account_number text,
+  sort_code text,
+  currency text default 'EUR',
+  is_default boolean default false,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+-- =============================================
 -- ROW LEVEL SECURITY
 -- =============================================
 
--- Profiles
+-- Products
+alter table public.products enable row level security;
+create policy "Users manage own products" on public.products
+  for all using (
+    company_id in (select id from public.companies where user_id = auth.uid())
+  );
+
+-- Bank details
+alter table public.bank_details enable row level security;
+create policy "Users manage own bank details" on public.bank_details
+  for all using (
+    company_id in (select id from public.companies where user_id = auth.uid())
+  );
+
+-- =============================================
+-- UTILITY FUNCTIONS
+-- =============================================
+
+-- Generate next invoice number per company
 alter table public.profiles enable row level security;
 create policy "Users can view own profile" on public.profiles for select using (auth.uid() = id);
 create policy "Users can update own profile" on public.profiles for update using (auth.uid() = id);
