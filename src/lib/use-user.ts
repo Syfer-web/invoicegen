@@ -27,21 +27,22 @@ export function useUser(): UseUserReturn {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setUser(user)
-      if (user) {
+    supabase.auth.getUser().then((result: { data: { user: User | null } }) => {
+      const u = result.data.user
+      setUser(u)
+      if (u) {
         supabase
           .from('profiles')
           .select('*')
-          .eq('id', user.id)
+          .eq('id', u.id)
           .single()
-          .then(({ data }) => { setProfile(data); setLoading(false) })
+          .then((result: { data: Profile | null }) => { setProfile(result.data); setLoading(false) })
       } else {
         setLoading(false)
       }
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: string, session: { user: User | null } | null) => {
       setUser(session?.user ?? null)
     })
 

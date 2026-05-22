@@ -3,6 +3,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type CompanyRow = { id: string } | null | any
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface Client {
@@ -491,7 +494,7 @@ export default function ClientsPage() {
           return
         }
 
-        setCompanyId(company.id)
+        setCompanyId((company as CompanyRow).id)
 
         // Get clients with last invoice info
         const { data: clientsData, error } = await supabase
@@ -502,7 +505,7 @@ export default function ClientsPage() {
               created_at
             )
           `)
-          .eq('company_id', company.id)
+          .eq('company_id', (company as CompanyRow).id)
           .order('created_at', { ascending: false })
 
         if (error) throw error

@@ -210,16 +210,17 @@ export default function Dashboard() {
       if (invoices) {
         const now = new Date()
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
+        const rows = invoices as Invoice[]
 
-        const outstanding = invoices.filter(i => ['sent', 'draft'].includes(i.status)).reduce((s, i) => s + (i.total || 0), 0)
-        const outstandingCount = invoices.filter(i => ['sent', 'draft'].includes(i.status)).length
-        const paidThisMonth = invoices.filter(i => i.status === 'paid' && i.paid_at && i.paid_at >= startOfMonth).reduce((s, i) => s + (i.total || 0), 0)
-        const paidThisMonthCount = invoices.filter(i => i.status === 'paid' && i.paid_at && i.paid_at >= startOfMonth).length
-        const overdueCount = invoices.filter(i => i.status === 'overdue').length
-        const overdueAmount = invoices.filter(i => i.status === 'overdue').reduce((s, i) => s + (i.total || 0), 0)
+        const outstanding = rows.filter(i => ['sent', 'draft'].includes(i.status)).reduce((s, i) => s + (i.total || 0), 0)
+        const outstandingCount = rows.filter(i => ['sent', 'draft'].includes(i.status)).length
+        const paidThisMonth = rows.filter(i => i.status === 'paid' && i.paid_at && i.paid_at >= startOfMonth).reduce((s, i) => s + (i.total || 0), 0)
+        const paidThisMonthCount = rows.filter(i => i.status === 'paid' && i.paid_at && i.paid_at >= startOfMonth).length
+        const overdueCount = rows.filter(i => i.status === 'overdue').length
+        const overdueAmount = rows.filter(i => i.status === 'overdue').reduce((s, i) => s + (i.total || 0), 0)
 
         setStats({ outstanding, outstandingCount, paidThisMonth, paidThisMonthCount, overdueCount, overdueAmount })
-        setRecentInvoices(invoices.slice(0, 5))
+        setRecentInvoices(rows.slice(0, 5))
 
         // Monthly revenue
         const months: Record<string, number> = {}
@@ -227,8 +228,8 @@ export default function Dashboard() {
           const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
           months[d.toLocaleDateString('en-GB', { month: 'short' })] = 0
         }
-        invoices.filter(i => i.status === 'paid' && i.paid_at).forEach(i => {
-          const shortKey = new Date(i.paid_at).toLocaleDateString('en-GB', { month: 'short' })
+        rows.filter(i => i.status === 'paid' && i.paid_at).forEach(i => {
+          const shortKey = new Date(i.paid_at as string).toLocaleDateString('en-GB', { month: 'short' })
           if (shortKey in months) months[shortKey] += i.total || 0
         })
         setMonthlyRevenue(Object.entries(months).map(([month, total]) => ({ month, total })))
