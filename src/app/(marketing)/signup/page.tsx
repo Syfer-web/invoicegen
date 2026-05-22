@@ -1,11 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 
 export default function Signup() {
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [fullName, setFullName] = useState('')
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
   const [error, setError] = useState('')
@@ -15,89 +16,120 @@ export default function Signup() {
     setLoading(true)
     setError('')
 
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
-    })
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { full_name: fullName },
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
 
-    if (error) {
-      setError(error.message)
-      setLoading(false)
-    } else {
+      if (error) throw error
       setSent(true)
+    } catch (err: any) {
+      setError(err.message || 'Something went wrong')
+    } finally {
       setLoading(false)
     }
   }
 
   if (sent) {
     return (
-      <div className="w-full max-w-md text-center">
-        <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/10 mx-auto">
-          <svg className="h-8 w-8 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+      <div>
+        {/* Icon */}
+        <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-xl bg-white/[0.04] border border-white/[0.07]">
+          <svg className="h-[18px] w-[18px] text-emerald-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5H4.5A2.25 2.25 0 002.25 6.75m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
           </svg>
         </div>
-        <h1 className="text-2xl font-bold text-white mb-2">Check your email</h1>
-        <p className="text-zinc-400 mb-6">We sent a magic link to <strong className="text-white">{email}</strong>. Click it to activate your account and get started.</p>
-        <button onClick={() => setSent(false)} className="text-sm text-emerald-400 hover:text-emerald-300">
-          Use a different email
+
+        <h2 className="text-[15px] font-semibold text-white leading-snug tracking-tight mb-1">
+          Check your email
+        </h2>
+        <p className="text-[13px] text-white/40 leading-relaxed mb-5">
+          We sent a confirmation link to<br />
+          <span className="text-white/70 font-medium">{email}</span>
+        </p>
+
+        <div className="rounded-lg bg-white/[0.03] border border-white/[0.05] px-4 py-3">
+          <p className="text-[12px] text-white/30 leading-relaxed">
+            Click the link to activate your account. Check your spam folder if it doesn&apos;t arrive.
+          </p>
+        </div>
+
+        <button
+          onClick={() => setSent(false)}
+          className="mt-4 text-[12px] text-white/30 hover:text-emerald-400/80 transition-colors"
+        >
+          ← Use a different email
         </button>
       </div>
     )
   }
 
   return (
-    <div className="w-full max-w-md">
-      <div className="text-center mb-8">
-        <h1 className="text-2xl font-bold text-white mb-2">Create your account</h1>
-        <p className="text-zinc-400 text-sm">Start free, upgrade when you&apos;re ready.</p>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {error && (
-          <div className="rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400">
-            {error}
-          </div>
-        )}
-        <div>
-          <label htmlFor="email" className="block text-sm font-medium text-zinc-300 mb-1.5">
-            Email
-          </label>
-          <input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@company.com"
-            required
-            className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-colors"
-          />
+    <form onSubmit={handleSubmit} className="space-y-3">
+      {/* Error */}
+      {error && (
+        <div className="rounded-lg bg-red-500/8 border border-red-500/20 px-3.5 py-2.5">
+          <p className="text-[12px] text-red-400 leading-snug">{error}</p>
         </div>
+      )}
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded-full bg-emerald-500 py-3 text-base font-semibold text-black transition-colors hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {loading ? 'Creating account...' : 'Create free account'}
-        </button>
-      </form>
-
-      <div className="mt-6 text-center text-sm text-zinc-400">
-        Already have an account?{' '}
-        <Link href="/login" className="text-emerald-400 hover:text-emerald-300 font-medium">
-          Sign in
-        </Link>
+      {/* Full name */}
+      <div>
+        <input
+          type="text"
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+          placeholder="Full name"
+          className="w-full rounded-lg border border-white/[0.08] bg-white/[0.03] px-3.5 py-2.5 text-[13px] text-white placeholder-white/25 transition-all focus:border-emerald-500/40 focus:bg-white/[0.04] focus:outline-none focus:ring-1 focus:ring-emerald-500/15"
+        />
       </div>
 
-      <p className="mt-6 text-center text-xs text-zinc-600">
-        By signing up, you agree to our{' '}
-        <Link href="/terms" className="underline hover:text-zinc-400">Terms of Service</Link>
+      {/* Email */}
+      <div>
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Work email"
+          required
+          className="w-full rounded-lg border border-white/[0.08] bg-white/[0.03] px-3.5 py-2.5 text-[13px] text-white placeholder-white/25 transition-all focus:border-emerald-500/40 focus:bg-white/[0.04] focus:outline-none focus:ring-1 focus:ring-emerald-500/15"
+        />
+      </div>
+
+      {/* Password */}
+      <div>
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Create password (8+ chars)"
+          required
+          minLength={8}
+          className="w-full rounded-lg border border-white/[0.08] bg-white/[0.03] px-3.5 py-2.5 text-[13px] text-white placeholder-white/25 transition-all focus:border-emerald-500/40 focus:bg-white/[0.04] focus:outline-none focus:ring-1 focus:ring-emerald-500/15"
+        />
+      </div>
+
+      {/* Submit */}
+      <button
+        type="submit"
+        disabled={loading}
+        className="w-full rounded-lg bg-emerald-500 py-2.5 text-[13px] font-semibold text-black transition-all hover:bg-emerald-400 active:scale-[0.99] disabled:opacity-40"
+      >
+        {loading ? 'Creating account...' : 'Create free account'}
+      </button>
+
+      {/* Terms */}
+      <p className="text-center text-[11px] text-white/20 leading-relaxed">
+        By creating an account you agree to our{' '}
+        <a href="/terms" className="underline hover:text-white/30 transition-colors">Terms</a>
         {' '}and{' '}
-        <Link href="/privacy" className="underline hover:text-zinc-400">Privacy Policy</Link>.
+        <a href="/privacy" className="underline hover:text-white/30 transition-colors">Privacy Policy</a>.
       </p>
-    </div>
+    </form>
   )
 }
