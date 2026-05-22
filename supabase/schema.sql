@@ -162,8 +162,104 @@ create policy "Users manage own bank details" on public.bank_details
   );
 
 -- =============================================
+-- RECURRING PROFILES
+-- =============================================
+create table if not exists public.recurring_profiles (
+  id uuid default gen_random_uuid() primary key,
+  company_id uuid references public.companies(id) on delete cascade not null,
+  client_id uuid references public.clients(id) on delete set null,
+  name text not null,
+  frequency text not null check (frequency in ('weekly', 'biweekly', 'monthly', 'quarterly')),
+  start_date date not null default current_date,
+  next_run date,
+  auto_send boolean default false,
+  template_items jsonb not null default '[]',
+  template_notes text,
+  template_currency text default 'EUR',
+  template_vat_rate numeric(5,2) default 0,
+  is_active boolean default true,
+  last_generated timestamptz,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+-- =============================================
+-- SENT REMINDERS
+-- =============================================
+create table if not exists public.sent_reminders (
+  id uuid default gen_random_uuid() primary key,
+  invoice_id uuid references public.invoices(id) on delete cascade not null,
+  reminder_type text not null check (reminder_type in ('due_soon', 'on_due', 'overdue', 'first_reminder', 'second_reminder', 'final_reminder')),
+  sent_at timestamptz default now(),
+  sent_via text default 'email',
+  created_at timestamptz default now()
+);
+
+-- =============================================
+-- REMINDER SETTINGS (per company)
+-- =============================================
+create table if not exists public.reminder_settings (
+  id uuid default gen_random_uuid() primary key,
+  company_id uuid references public.companies(id) on delete cascade not null unique,
+  enabled boolean default true,
+  due_soon_days integer default 3,
+  auto_reminders boolean default true,
+  first_reminder_days integer default 1,
+  second_reminder_days integer default 7,
+  final_reminder_days integer default 14,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+-- =============================================
+-- ROW LEVEL SECURITY
+-- =============================================
+
+-- Recurring profiles
+alter table public.recurring_profiles enable row level security;
+create policy "Users manage own recurring profiles" on public.recurring_profiles
+  for all using (
+    company_id in (select id from public.companies where user_id = auth.uid())
+  );
+
+-- Sent reminders
+alter table public.sent_reminders enable row level security;
+create policy "Users manage own reminders" on public.sent_reminders
+  for all using (
+    invoice_id in (select id from public.invoices where company_id in (
+      select id from public.companies where user_id = auth.uid()
+    ))
+  );
+
+-- Reminder settings
+alter table public.reminder_settings enable row level security;
+create policy "Users manage own reminder settings" on public.reminder_settings
+  for all using (
+    company_id in (select id from public.companies where user_id = auth.uid())
+  );
+
+-- =============================================
 -- UTILITY FUNCTIONS
 -- =============================================
+
+-- Calculate next run date for recurring profiles
+create or replace function public.calculate_next_run(current_run date, frequency text)
+returns date as $$
+begin
+  return case frequency
+    when 'weekly'    then current_run + interval '1 week'
+    when 'biweekly'   then current_run + interval '2 weeks'
+    when 'monthly'   then current_run + interval '1 month'
+    when 'quarterly' then current_run + interval '3 months'
+  end;
+end;
+$$ language plpgsql security definer;
+
+-- Get company ID by user ID
+create or replace function public.get_company_id(p_user_id uuid)
+returns uuid as $$
+  select id from public.companies where user_id = p_user_id limit 1;
+$$ language sql security definer;
 
 -- Generate next invoice number per company
 alter table public.profiles enable row level security;
