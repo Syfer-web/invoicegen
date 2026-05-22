@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+export const dynamic = 'force-dynamic'
 
 type Invoice = {
   id: string
@@ -21,8 +22,6 @@ type Invoice = {
 
 type Filter = 'all' | 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled'
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
 function formatCurrency(amount: number, currency = 'EUR') {
   const symbols: Record<string, string> = { EUR: '€', GBP: '£', USD: '$' }
   return `${symbols[currency] || '€'}${amount.toFixed(2)}`
@@ -36,26 +35,13 @@ function daysUntil(dateStr: string) {
   return Math.ceil((new Date(dateStr).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
 }
 
-// ─── Status Badge ─────────────────────────────────────────────────────────────
-
-function StatusBadge({ status }: { status: string }) {
-  const configs: Record<string, { cls: string; dot: string; label: string }> = {
-    paid:      { cls: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20', dot: 'bg-emerald-400', label: 'Paid' },
-    sent:      { cls: 'bg-blue-500/10 text-blue-400 border border-blue-500/20', dot: 'bg-blue-400', label: 'Sent' },
-    draft:     { cls: 'bg-white/5 text-zinc-400 border border-white/10', dot: 'bg-zinc-500', label: 'Draft' },
-    overdue:   { cls: 'bg-red-500/10 text-red-400 border border-red-500/20', dot: 'bg-red-400', label: 'Overdue' },
-    cancelled: { cls: 'bg-zinc-800/30 text-zinc-500 border border-zinc-700/30', dot: 'bg-zinc-600', label: 'Cancelled' },
-  }
-  const c = configs[status] || configs.draft
-  return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${c.cls}`}>
-      <span className={`inline-block w-1.5 h-1.5 rounded-full ${c.dot}`} />
-      {c.label}
-    </span>
-  )
+const STATUS_STYLES: Record<string, { bg: string; border: string; color: string; dot: string; label: string }> = {
+  paid:      { bg: 'rgba(16,185,129,0.1)', border: 'rgba(16,185,129,0.2)', color: '#34d399', dot: '#34d399', label: 'Paid' },
+  sent:      { bg: 'rgba(59,130,246,0.1)', border: 'rgba(59,130,246,0.2)', color: '#60a5fa', dot: '#60a5fa', label: 'Sent' },
+  draft:     { bg: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.1)', color: '#71717a', dot: '#52525b', label: 'Draft' },
+  overdue:   { bg: 'rgba(239,68,68,0.1)', border: 'rgba(239,68,68,0.2)', color: '#f87171', dot: '#f87171', label: 'Overdue' },
+  cancelled: { bg: 'rgba(255,255,255,0.03)', border: 'rgba(255,255,255,0.07)', color: '#52525b', dot: '#52525b', label: 'Cancelled' },
 }
-
-type Filter = 'all' | 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled' | 'recurring'
 
 const FILTERS: { key: Filter; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -64,41 +50,53 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: 'paid', label: 'Paid' },
   { key: 'overdue', label: 'Overdue' },
   { key: 'cancelled', label: 'Cancelled' },
-  { key: 'recurring', label: 'Recurring' },
 ]
 
-// ─── Empty State ───────────────────────────────────────────────────────────────
+function StatusBadge({ status }: { status: string }) {
+  const c = STATUS_STYLES[status] || STATUS_STYLES.draft
+  return (
+    <span style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 6,
+      borderRadius: 999,
+      padding: '2px 10px',
+      fontSize: 11,
+      fontWeight: 600,
+      background: c.bg,
+      border: `1px solid ${c.border}`,
+      color: c.color,
+    }}>
+      <span style={{ width: 6, height: 6, borderRadius: 999, background: c.dot, display: 'inline-block', flexShrink: 0 }} />
+      {c.label}
+    </span>
+  )
+}
 
 function EmptyState({ hasFilter }: { hasFilter: boolean }) {
   return (
-    <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
-      <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-4">
-        <svg className="w-7 h-7 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '96px 24px', textAlign: 'center' }}>
+      <div style={{ width: 56, height: 56, borderRadius: 16, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+        <span style={{ fontSize: 24 }}>📄</span>
       </div>
-      <h3 className="text-sm font-semibold text-white mb-1.5">
+      <h3 style={{ fontSize: 14, fontWeight: 600, color: '#fff', marginBottom: 6 }}>
         {hasFilter ? 'No matching invoices' : 'No invoices yet'}
       </h3>
-      <p className="text-xs text-zinc-500 mb-5 max-w-xs leading-relaxed">
+      <p style={{ fontSize: 12, color: '#71717a', marginBottom: 20, maxWidth: 320, lineHeight: 1.5 }}>
         {hasFilter ? 'Try a different filter or clear your search.' : 'Create your first invoice and start getting paid online.'}
       </p>
       {!hasFilter && (
         <Link
           href="/invoices/new"
-          className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-black hover:bg-emerald-400 transition-colors"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 8, borderRadius: 9999, background: '#10b981', padding: '10px 20px', fontSize: 14, fontWeight: 600, color: '#000', border: 'none', textDecoration: 'none', transition: 'all 0.15s', fontFamily: 'inherit' }}
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
+          <span style={{ fontSize: 16 }}>+</span>
           New Invoice
         </Link>
       )}
     </div>
   )
 }
-
-// ─── Invoice Row ─────────────────────────────────────────────────────────────
 
 function InvoiceRow({ invoice }: { invoice: Invoice }) {
   const [hovered, setHovered] = useState(false)
@@ -107,71 +105,54 @@ function InvoiceRow({ invoice }: { invoice: Invoice }) {
 
   return (
     <div
-      className="flex items-center gap-4 px-5 py-3.5 hover:bg-white/[0.02] transition-colors cursor-pointer group"
+      style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 20px', transition: 'background 0.15s', cursor: 'default', background: hovered ? 'rgba(255,255,255,0.02)' : 'transparent' }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* Number + client */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-0.5">
-          <span className="text-sm font-medium text-white group-hover:text-emerald-300 transition-colors">
-            {invoice.invoice_number}
-          </span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+          <span style={{ fontSize: 14, fontWeight: 500, color: '#fff' }}>{invoice.invoice_number}</span>
           <StatusBadge status={invoice.status} />
         </div>
-        <p className="text-xs text-zinc-500 truncate">
+        <p style={{ fontSize: 12, color: '#71717a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {invoice.client?.name || 'No client'}
-          {invoice.client?.email && <span className="text-zinc-600 ml-1">· {invoice.client.email}</span>}
+          {invoice.client?.email && <span style={{ color: '#52525b', marginLeft: 6 }}>· {invoice.client.email}</span>}
         </p>
       </div>
 
-      {/* Due date */}
-      <div className="hidden md:block text-right flex-shrink-0 w-28">
-        <p className={`text-xs font-medium ${isOverdue ? 'text-red-400' : 'text-zinc-400'}`}>
+      <div style={{ display: 'none', textAlign: 'right', flexShrink: 0, width: 112 }}>
+        <p style={{ fontSize: 12, fontWeight: 500, color: isOverdue ? '#f87171' : '#71717a' }}>
           {formatDate(invoice.due_date)}
         </p>
         {isOverdue ? (
-          <p className="text-[10px] text-red-400/60">{Math.abs(days)}d overdue</p>
+          <p style={{ fontSize: 10, color: 'rgba(248,113,113,0.6)' }}>{Math.abs(days)}d overdue</p>
         ) : days <= 3 && invoice.status !== 'paid' ? (
-          <p className="text-[10px] text-amber-400/60">Due soon</p>
+          <p style={{ fontSize: 10, color: 'rgba(251,191,36,0.6)' }}>Due soon</p>
         ) : null}
       </div>
 
-      {/* Amount */}
-      <div className="text-right flex-shrink-0 w-24">
-        <p className="text-sm font-semibold text-white tabular-nums">{formatCurrency(invoice.total, invoice.currency)}</p>
+      <div style={{ textAlign: 'right', flexShrink: 0, width: 96 }}>
+        <p style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>{formatCurrency(invoice.total, invoice.currency)}</p>
         {invoice.sent_at && invoice.status === 'paid' && invoice.paid_at && (
-          <p className="text-[10px] text-zinc-600">Paid {formatDate(invoice.paid_at)}</p>
+          <p style={{ fontSize: 10, color: '#52525b' }}>Paid {formatDate(invoice.paid_at)}</p>
         )}
       </div>
 
-      {/* Actions */}
-      <div className={`flex items-center gap-1 flex-shrink-0 transition-opacity ${hovered ? 'opacity-100' : 'opacity-0'}`}>
-        <button
-          className="w-7 h-7 rounded-lg flex items-center justify-center text-zinc-500 hover:text-white hover:bg-white/10 transition-all"
-          title="Edit invoice"
-        >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-          </svg>
-        </button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0, opacity: hovered ? 1 : 0, transition: 'opacity 0.15s' }}>
         <Link
           href="/invoices/new"
-          className="w-7 h-7 rounded-lg flex items-center justify-center text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all"
+          style={{ width: 28, height: 28, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#71717a', background: 'transparent', border: 'none', textDecoration: 'none', cursor: 'pointer', transition: 'all 0.15s', fontSize: 14 }}
           title="Duplicate"
         >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-          </svg>
+          📋
         </Link>
       </div>
     </div>
   )
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
-
 export default function InvoicesPage() {
+  const router = useRouter()
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<Filter>('all')
@@ -180,10 +161,9 @@ export default function InvoicesPage() {
   useEffect(() => {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (!user) { router.push('/login'); return }
 
-      const { data: company } = await supabase
-        .from('companies').select('id').eq('user_id', user.id).single()
+      const { data: company } = await supabase.from('companies').select('id').eq('user_id', user.id).single()
       if (!company) { setLoading(false); return }
 
       const { data } = await supabase
@@ -195,18 +175,11 @@ export default function InvoicesPage() {
       setLoading(false)
     }
     load()
-  }, [])
+  }, [router])
 
   const filtered = invoices.filter(inv => {
-    const matchesFilter = filter === 'all'
-      ? true
-      : filter === 'recurring'
-        ? inv.status !== 'cancelled' // recurring invoices live in all statuses
-        : inv.status === filter
-    const matchesSearch = !search ||
-      inv.invoice_number.toLowerCase().includes(search.toLowerCase()) ||
-      inv.client?.name?.toLowerCase().includes(search.toLowerCase()) ||
-      inv.client?.email?.toLowerCase().includes(search.toLowerCase())
+    const matchesFilter = filter === 'all' ? true : inv.status === filter
+    const matchesSearch = !search || inv.invoice_number.toLowerCase().includes(search.toLowerCase()) || inv.client?.name?.toLowerCase().includes(search.toLowerCase()) || inv.client?.email?.toLowerCase().includes(search.toLowerCase())
     return matchesFilter && matchesSearch
   })
 
@@ -217,121 +190,133 @@ export default function InvoicesPage() {
     paid: invoices.filter(i => i.status === 'paid').length,
     overdue: invoices.filter(i => i.status === 'overdue').length,
     cancelled: invoices.filter(i => i.status === 'cancelled').length,
-    recurring: invoices.filter(i => i.status !== 'cancelled').length,
   }
 
   const totalAmount = filtered.reduce((s, i) => s + (i.total || 0), 0)
   const currency = invoices[0]?.currency || 'EUR'
 
   return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-white tracking-tight">Invoices</h1>
-          <p className="text-sm text-zinc-500 mt-0.5">{invoices.length} total</p>
-        </div>
-        <Link
-          href="/invoices/new"
-          className="inline-flex items-center gap-2 rounded-lg bg-emerald-500 px-4 py-2.5 text-[13px] font-semibold text-black hover:bg-emerald-400 transition-colors"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          New Invoice
-        </Link>
-      </div>
-
-      {/* Search + filters */}
-      <div className="flex items-center gap-3">
-        {/* Search */}
-        <div className="relative flex-1 max-w-xs">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <input
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search invoices…"
-            className="w-full rounded-lg border border-white/10 bg-white/5 pl-9 pr-3 py-2 text-[13px] text-white placeholder-zinc-600 focus:outline-none focus:border-emerald-500/30 focus:ring-1 focus:ring-emerald-500/20 transition-colors"
-          />
-        </div>
-
-        {/* Filter tabs */}
-        <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1 border border-white/10">
-          {FILTERS.map(f => (
-            <button
-              key={f.key}
-              onClick={() => setFilter(f.key)}
-              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[12px] font-medium transition-all ${
-                filter === f.key
-                  ? 'bg-white/10 text-white'
-                  : 'text-zinc-500 hover:text-zinc-300'
-              }`}
-            >
-              {f.label}
-              {counts[f.key] > 0 && (
-                <span className={`inline-flex items-center justify-center rounded-full w-4 h-4 text-[10px] ${
-                  filter === f.key ? 'bg-white/15 text-white' : 'text-zinc-600'
-                }`}>
-                  {counts[f.key]}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Summary bar */}
-      {filtered.length > 0 && (
-        <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-5 py-3">
-          <p className="text-xs text-zinc-500">
-            <span className="text-white font-medium">{filtered.length}</span> invoice{filtered.length !== 1 ? 's' : ''}
-            {filter !== 'all' && ` (${filter})`}
-          </p>
-          <p className="text-sm font-semibold text-white tabular-nums">
-            {formatCurrency(totalAmount, currency)} total
-          </p>
-        </div>
-      )}
-
-      {/* List */}
-      <div className="rounded-xl border border-white/10 bg-white/[0.03] overflow-hidden">
-        {loading ? (
-          <div className="divide-y divide-white/5">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-4 px-5 py-4 animate-pulse">
-                <div className="flex-1 space-y-2">
-                  <div className="h-4 w-24 rounded bg-white/5" />
-                  <div className="h-3 w-40 rounded bg-white/5" />
-                </div>
-                <div className="h-4 w-20 rounded bg-white/5" />
-                <div className="h-4 w-16 rounded bg-white/5" />
-              </div>
-            ))}
+    <>
+      <style>{`
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+      `}</style>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <h1 style={{ fontSize: 20, fontWeight: 600, color: '#fff', letterSpacing: '-0.02em', margin: 0 }}>Invoices</h1>
+            <p style={{ fontSize: 14, color: '#71717a', marginTop: 4 }}>{invoices.length} total</p>
           </div>
-        ) : filtered.length === 0 ? (
-          <EmptyState hasFilter={filter !== 'all' || !!search} />
-        ) : (
-          <>
-            {/* Column headers */}
-            <div className="flex items-center gap-4 px-5 py-3 border-b border-white/10">
-              <div className="flex-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-600">Invoice</div>
-              <div className="hidden md:block text-right text-[10px] font-semibold uppercase tracking-widest text-zinc-600 w-28">Due date</div>
-              <div className="text-right text-[10px] font-semibold uppercase tracking-widest text-zinc-600 w-24">Amount</div>
-              <div className="w-14" />
-            </div>
+          <Link
+            href="/invoices/new"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 8, borderRadius: 8, background: '#10b981', padding: '10px 16px', fontSize: 13, fontWeight: 600, color: '#000', border: 'none', textDecoration: 'none', transition: 'all 0.15s', fontFamily: 'inherit' }}
+          >
+            <span style={{ fontSize: 16 }}>+</span>
+            New Invoice
+          </Link>
+        </div>
 
-            {/* Rows */}
-            <div className="divide-y divide-white/5">
-              {filtered.map(inv => (
-                <InvoiceRow key={inv.id} invoice={inv} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ position: 'relative', flex: 1, maxWidth: 300 }}>
+            <div style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#52525b', fontSize: 14, zIndex: 1 }}>🔍</div>
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search invoices…"
+              style={{ width: '100%', boxSizing: 'border-box', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', paddingLeft: 36, paddingRight: 12, paddingTop: 9, paddingBottom: 9, fontSize: 13, color: '#fff', outline: 'none', fontFamily: 'inherit', transition: 'border-color 0.15s' }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(255,255,255,0.05)', padding: 4, borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)' }}>
+            {FILTERS.map(f => {
+              const isActive = filter === f.key
+              return (
+                <button
+                  key={f.key}
+                  onClick={() => setFilter(f.key)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    borderRadius: 6,
+                    padding: '6px 12px',
+                    fontSize: 12,
+                    fontWeight: 500,
+                    transition: 'all 0.15s',
+                    background: isActive ? 'rgba(255,255,255,0.1)' : 'transparent',
+                    color: isActive ? '#fff' : '#71717a',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {f.label}
+                  {counts[f.key] > 0 && (
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: 16,
+                      height: 16,
+                      borderRadius: 999,
+                      fontSize: 10,
+                      background: isActive ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.05)',
+                    }}>
+                      {counts[f.key]}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {filtered.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderRadius: 12, border: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.03)', padding: '12px 20px' }}>
+            <p style={{ fontSize: 12, color: '#71717a', margin: 0 }}>
+              <span style={{ color: '#fff', fontWeight: 500 }}>{filtered.length}</span> invoice{filtered.length !== 1 ? 's' : ''}
+              {filter !== 'all' && ` (${filter})`}
+            </p>
+            <p style={{ fontSize: 14, fontWeight: 600, color: '#fff', margin: 0 }}>
+              {formatCurrency(totalAmount, currency)} total
+            </p>
+          </div>
+        )}
+
+        <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.03)', overflow: 'hidden' }}>
+          {loading ? (
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {[1, 2, 3, 4, 5].map((_, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px', borderBottom: i < 4 ? '1px solid rgba(255,255,255,0.05)' : 'none', animation: 'pulse 2s ease-in-out infinite' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ height: 16, width: 96, borderRadius: 6, background: 'rgba(255,255,255,0.05)', marginBottom: 6 }} />
+                    <div style={{ height: 12, width: 160, borderRadius: 6, background: 'rgba(255,255,255,0.05)' }} />
+                  </div>
+                  <div style={{ height: 16, width: 80, borderRadius: 6, background: 'rgba(255,255,255,0.05)' }} />
+                  <div style={{ height: 16, width: 64, borderRadius: 6, background: 'rgba(255,255,255,0.05)' }} />
+                </div>
               ))}
             </div>
-          </>
-        )}
+          ) : filtered.length === 0 ? (
+            <EmptyState hasFilter={filter !== 'all' || !!search} />
+          ) : (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                <div style={{ flex: 1, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#52525b' }}>Invoice</div>
+                <div style={{ display: 'none', textAlign: 'right', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#52525b', width: 112 }}>Due date</div>
+                <div style={{ textAlign: 'right', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#52525b', width: 96 }}>Amount</div>
+                <div style={{ width: 56 }} />
+              </div>
+              <div>
+                {filtered.map(inv => (
+                  <InvoiceRow key={inv.id} invoice={inv} />
+                ))}
+              </div>
+            </>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   )
 }

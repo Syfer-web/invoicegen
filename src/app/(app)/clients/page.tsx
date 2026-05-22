@@ -1,12 +1,12 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type CompanyRow = { id: string } | null | any
+export const dynamic = 'force-dynamic'
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+type CompanyRow = { id: string } | null | any
 
 interface Client {
   id: string
@@ -40,201 +40,250 @@ interface ClientFormData {
   vat_number: string
 }
 
-// ─── Toast Component ─────────────────────────────────────────────────────────
-
 function Toast({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string) => void }) {
   useEffect(() => {
     const t = setTimeout(() => onDismiss(toast.id), 4000)
     return () => clearTimeout(t)
   }, [toast.id, onDismiss])
 
+  const isSuccess = toast.type === 'success'
   return (
     <div
-      className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-sm shadow-2xl backdrop-blur-sm animate-in slide-in-from-right-4 ${
-        toast.type === 'success'
-          ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-          : 'border-red-500/30 bg-red-500/10 text-red-300'
-      }`}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        borderRadius: 12,
+        border: `1px solid ${isSuccess ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`,
+        padding: '12px 16px',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+        backdropFilter: 'blur(4px)',
+        background: isSuccess ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+        color: isSuccess ? '#6ee7b7' : '#fca5a5',
+        fontSize: 13,
+        fontWeight: 500,
+        animation: 'slideInRight 0.3s ease',
+      }}
     >
-      {toast.type === 'success' ? (
-        <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-        </svg>
-      ) : (
-        <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      )}
+      <div style={{ width: 16, height: 16, borderRadius: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 14 }}>
+        {isSuccess ? '✓' : '✕'}
+      </div>
       {toast.message}
       <button
         onClick={() => onDismiss(toast.id)}
-        className="ml-auto rounded-lg p-1 hover:bg-white/10 transition-colors"
+        style={{
+          marginLeft: 'auto',
+          borderRadius: 8,
+          padding: 4,
+          background: 'transparent',
+          border: 'none',
+          cursor: 'pointer',
+          color: 'inherit',
+          display: 'flex',
+          alignItems: 'center',
+          fontSize: 16,
+          lineHeight: 1,
+        }}
       >
-        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-        </svg>
+        ✕
       </button>
     </div>
   )
 }
 
-// ─── Loading Skeleton ────────────────────────────────────────────────────────
-
 function ClientSkeleton() {
   return (
-    <div className="animate-pulse rounded-xl border border-white/10 bg-white/[0.03] p-5">
-      <div className="flex items-start gap-4">
-        <div className="w-10 h-10 rounded-full bg-white/5" />
-        <div className="flex-1 space-y-2">
-          <div className="h-4 w-32 rounded bg-white/5" />
-          <div className="h-3 w-48 rounded bg-white/5" />
-          <div className="h-3 w-40 rounded bg-white/5" />
+    <div style={{
+      borderRadius: 12,
+      border: '1px solid rgba(255,255,255,0.07)',
+      background: 'rgba(255,255,255,0.02)',
+      padding: 20,
+      animation: 'pulse 2s ease-in-out infinite',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
+        <div style={{ width: 40, height: 40, borderRadius: 999, background: 'rgba(255,255,255,0.05)' }} />
+        <div style={{ flex: 1 }}>
+          <div style={{ height: 16, width: 128, borderRadius: 6, background: 'rgba(255,255,255,0.05)', marginBottom: 8 }} />
+          <div style={{ height: 12, width: 192, borderRadius: 6, background: 'rgba(255,255,255,0.05)', marginBottom: 8 }} />
+          <div style={{ height: 12, width: 160, borderRadius: 6, background: 'rgba(255,255,255,0.05)' }} />
         </div>
-        <div className="flex gap-2">
-          <div className="h-8 w-16 rounded-lg bg-white/5" />
-          <div className="h-8 w-16 rounded-lg bg-white/5" />
+        <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ height: 32, width: 64, borderRadius: 8, background: 'rgba(255,255,255,0.05)' }} />
+          <div style={{ height: 32, width: 64, borderRadius: 8, background: 'rgba(255,255,255,0.05)' }} />
         </div>
       </div>
     </div>
   )
 }
 
-// ─── Empty State ─────────────────────────────────────────────────────────────
-
 function EmptyState({ onAdd }: { onAdd: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
-      <div className="relative mb-6">
-        <div className="w-24 h-24 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center">
-          <svg className="w-12 h-12 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-          </svg>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '96px 24px', textAlign: 'center' }}>
+      <div style={{ position: 'relative', marginBottom: 24 }}>
+        <div style={{ width: 96, height: 96, borderRadius: 24, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(255,255,255,0.05)' }} />
         </div>
-        <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
-          <svg className="w-3 h-3 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-          </svg>
+        <div style={{ position: 'absolute', top: -4, right: -4, width: 24, height: 24, borderRadius: 999, background: 'rgba(16,185,129,0.2)', border: '1px solid rgba(16,185,129,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 12, height: 12, borderRadius: 999, background: 'rgba(16,185,129,0.4)' }} />
         </div>
       </div>
-
-      <h3 className="text-lg font-semibold text-white mb-2">No clients yet</h3>
-      <p className="text-sm text-zinc-500 max-w-sm mb-8 leading-relaxed">
+      <h3 style={{ fontSize: 18, fontWeight: 600, color: '#fff', marginBottom: 8 }}>No clients yet</h3>
+      <p style={{ fontSize: 13, color: '#71717a', maxWidth: 360, marginBottom: 32, lineHeight: 1.6 }}>
         Add your first client to start creating invoices faster. Client info is saved and auto-fills during invoicing.
       </p>
-
       <button
         onClick={onAdd}
-        className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-6 py-3 text-sm font-semibold text-black hover:bg-emerald-400 transition-all hover:scale-105 active:scale-95"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 8,
+          borderRadius: 9999,
+          background: '#10b981',
+          padding: '12px 24px',
+          fontSize: 14,
+          fontWeight: 600,
+          color: '#000',
+          border: 'none',
+          cursor: 'pointer',
+          transition: 'all 0.15s',
+          fontFamily: 'inherit',
+        }}
       >
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-        </svg>
+        <div style={{ width: 16, height: 16, borderRadius: 999, background: 'rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, lineHeight: 1 }}>+</div>
         Add your first client
       </button>
     </div>
   )
 }
 
-// ─── Client Card ─────────────────────────────────────────────────────────────
-
-function ClientCard({
-  client,
-  onEdit,
-  onDelete,
-}: {
-  client: Client
-  onEdit: () => void
-  onDelete: () => void
-}) {
+function ClientCard({ client, onEdit, onDelete }: { client: Client; onEdit: () => void; onDelete: () => void }) {
   const [hovered, setHovered] = useState(false)
+  const hasInvoices = client.invoice_count && client.invoice_count > 0
 
   return (
     <div
-      className="group rounded-xl border border-white/10 bg-white/[0.03] p-5 hover:border-white/20 hover:bg-white/[0.05] transition-all duration-200 cursor-default"
+      style={{
+        borderRadius: 12,
+        border: `1px solid ${hovered ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.07)'}`,
+        background: hovered ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.03)',
+        padding: 20,
+        transition: 'all 0.2s',
+        cursor: 'default',
+      }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <div className="flex items-start gap-4">
-        {/* Avatar */}
-        <div className="flex-shrink-0">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 border border-emerald-500/20 flex items-center justify-center">
-            <span className="text-sm font-bold text-emerald-400">
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
+        <div style={{ flexShrink: 0 }}>
+          <div style={{
+            width: 40,
+            height: 40,
+            borderRadius: 12,
+            background: 'linear-gradient(135deg, rgba(16,185,129,0.2), rgba(16,185,129,0.05))',
+            border: '1px solid rgba(16,185,129,0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: '#34d399' }}>
               {client.name.charAt(0).toUpperCase()}
             </span>
           </div>
         </div>
-
-        {/* Info */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <h3 className="text-sm font-semibold text-white truncate">{client.name}</h3>
-            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs flex-shrink-0 ${
-              client.invoice_count && client.invoice_count > 0
-                ? 'bg-emerald-500/10 text-emerald-400'
-                : 'bg-white/5 text-zinc-500'
-            }`}>
-              <span className={`inline-block w-1.5 h-1.5 rounded-full ${
-                client.invoice_count && client.invoice_count > 0 ? 'bg-emerald-400' : 'bg-zinc-600'
-              }`} />
-              {client.invoice_count && client.invoice_count > 0 ? 'Active' : 'New'}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <h3 style={{ fontSize: 14, fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{client.name}</h3>
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              borderRadius: 9999,
+              padding: '2px 8px',
+              fontSize: 11,
+              fontWeight: 600,
+              flexShrink: 0,
+              ...(hasInvoices
+                ? { background: 'rgba(16,185,129,0.1)', color: '#34d399', border: '1px solid rgba(16,185,129,0.2)' }
+                : { background: 'rgba(255,255,255,0.05)', color: '#71717a', border: '1px solid rgba(255,255,255,0.1)' }),
+            }}>
+              <span style={{ width: 6, height: 6, borderRadius: 999, background: hasInvoices ? '#34d399' : '#52525b', display: 'inline-block' }} />
+              {hasInvoices ? 'Active' : 'New'}
             </span>
           </div>
-
           {client.company && (
-            <p className="text-xs text-zinc-500 mb-1 truncate">{client.company}</p>
+            <p style={{ fontSize: 12, color: '#71717a', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{client.company}</p>
           )}
-
-          <div className="flex items-center gap-1.5 text-xs text-zinc-400">
-            <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-            </svg>
-            <span className="truncate">{client.email}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#71717a' }}>
+            <div style={{ width: 14, height: 14, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>
+              <span style={{ fontSize: 10 }}>@</span>
+            </div>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{client.email}</span>
           </div>
-
           {client.city && (
-            <div className="flex items-center gap-1.5 text-xs text-zinc-600 mt-0.5">
-              <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              <span className="truncate">{[client.city, client.country].filter(Boolean).join(', ')}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#52525b', marginTop: 2 }}>
+              <div style={{ width: 14, height: 14, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>
+                <span style={{ fontSize: 10 }}>📍</span>
+              </div>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{[client.city, client.country].filter(Boolean).join(', ')}</span>
             </div>
           )}
-
           {client.last_invoice_date && (
-            <p className="text-xs text-zinc-600 mt-1.5">
+            <p style={{ fontSize: 12, color: '#52525b', marginTop: 6 }}>
               Last invoice: {new Date(client.last_invoice_date).toLocaleDateString('en-IE', { day: 'numeric', month: 'short', year: 'numeric' })}
             </p>
           )}
         </div>
-
-        {/* Actions */}
-        <div className={`flex items-center gap-1.5 flex-shrink-0 transition-opacity duration-200 ${hovered ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          flexShrink: 0,
+          transition: 'opacity 0.2s',
+          opacity: hovered ? 1 : 0,
+        }}>
           <button
             onClick={onEdit}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 hover:text-white hover:bg-white/10 transition-all"
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#71717a',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.15s',
+            }}
             title="Edit client"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-            </svg>
+            <div style={{ fontSize: 14 }}>✎</div>
           </button>
           <button
             onClick={onDelete}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-all"
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#71717a',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.15s',
+            }}
             title="Delete client"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
+            <div style={{ fontSize: 14 }}>🗑</div>
           </button>
         </div>
       </div>
     </div>
   )
 }
-
-// ─── Client Modal ─────────────────────────────────────────────────────────────
 
 function ClientModal({
   client,
@@ -295,105 +344,117 @@ function ClientModal({
     onSave(form)
   }
 
-  const field = (key: keyof ClientFormData, label: string, type = 'text', placeholder = '') => (
+  const inputStyle = (field: keyof ClientFormData) => ({
+    width: '100%',
+    boxSizing: 'border-box',
+    borderRadius: 8,
+    border: `1px solid ${errors[field] ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.1)'}`,
+    background: 'rgba(255,255,255,0.05)',
+    padding: '10px 12px',
+    fontSize: 14,
+    color: '#fff',
+    outline: 'none',
+    fontFamily: 'inherit',
+    transition: 'border-color 0.15s',
+    ...(errors[field] ? {} : {}),
+  })
+
+  const field = (key: keyof ClientFormData, label: string, placeholder = '') => (
     <div>
-      <label className="block text-xs font-medium text-zinc-400 mb-1.5">{label}</label>
+      <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#71717a', marginBottom: 6 }}>{label}</label>
       <input
-        type={type}
+        type={key === 'email' ? 'email' : 'text'}
         value={form[key]}
         onChange={(e) => {
           setForm((f) => ({ ...f, [key]: e.target.value }))
           if (errors[key]) setErrors((er) => ({ ...er, [key]: undefined }))
         }}
         placeholder={placeholder}
-        className={`w-full rounded-lg border bg-white/5 px-3 py-2.5 text-sm text-white placeholder-zinc-600 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500/50 ${
-          errors[key] ? 'border-red-500/50' : 'border-white/10 focus:border-emerald-500/30'
-        }`}
+        style={{
+          ...inputStyle(key),
+          border: `1px solid ${errors[key] ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.1)'}`,
+        }}
       />
-      {errors[key] && <p className="mt-1 text-xs text-red-400">{errors[key]}</p>}
+      {errors[key] && <p style={{ marginTop: 4, fontSize: 12, color: '#f87171' }}>{errors[key]}</p>}
     </div>
   )
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-
-      {/* Modal */}
-      <div className="relative w-full max-w-lg rounded-2xl border border-white/10 bg-[#111113] shadow-2xl">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-white/10 px-6 py-5">
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} onClick={onClose} />
+      <div style={{ position: 'relative', width: '100%', maxWidth: 520, borderRadius: 16, border: '1px solid rgba(255,255,255,0.1)', background: '#111115', boxShadow: '0 25px 50px rgba(0,0,0,0.5)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.07)', padding: '20px 24px' }}>
           <div>
-            <h2 className="text-base font-semibold text-white">
-              {client ? 'Edit client' : 'Add new client'}
-            </h2>
-            <p className="text-xs text-zinc-500 mt-0.5">
-              {client ? 'Update client information' : 'Fill in the details below'}
-            </p>
+            <h2 style={{ fontSize: 16, fontWeight: 600, color: '#fff', margin: 0 }}>{client ? 'Edit client' : 'Add new client'}</h2>
+            <p style={{ fontSize: 12, color: '#71717a', marginTop: 4, margin: '4px 0 0' }}>{client ? 'Update client information' : 'Fill in the details below'}</p>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 hover:text-white hover:bg-white/10 transition-colors"
+            style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#71717a', background: 'transparent', border: 'none', cursor: 'pointer', transition: 'all 0.15s', fontSize: 18, lineHeight: 1 }}
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            ✕
           </button>
         </div>
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
-          <div className="grid grid-cols-2 gap-4">
-            {field('name', 'Name *', 'text', 'John Doe')}
-            {field('company', 'Company', 'text', 'Acme Corp')}
+        <form onSubmit={handleSubmit} style={{ padding: '20px 24px', maxHeight: '70vh', overflowY: 'auto' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+            {field('name', 'Name *', 'John Doe')}
+            {field('company', 'Company', 'Acme Corp')}
           </div>
-          {field('email', 'Email *', 'email', 'john@acme.com')}
-          <div>
-            <label className="block text-xs font-medium text-zinc-400 mb-1.5">Address</label>
+          {field('email', 'Email *', 'john@acme.com')}
+          <div style={{ marginTop: 16 }}>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#71717a', marginBottom: 6 }}>Address</label>
             <textarea
               value={form.address}
               onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
               placeholder="123 Business St, Suite 100"
               rows={2}
-              className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-zinc-600 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/30 resize-none"
+              style={{ width: '100%', boxSizing: 'border-box', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', padding: '10px 12px', fontSize: 14, color: '#fff', outline: 'none', fontFamily: 'inherit', resize: 'none', transition: 'border-color 0.15s' }}
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            {field('city', 'City', 'text', 'Dublin')}
-            {field('postcode', 'Postcode', 'text', 'D01 AB12')}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 16 }}>
+            {field('city', 'City', 'Dublin')}
+            {field('postcode', 'Postcode', 'D01 AB12')}
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            {field('country', 'Country', 'text', 'Ireland')}
-            {field('vat_number', 'VAT Number', 'text', 'IE1234567X')}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 16 }}>
+            {field('country', 'Country', 'Ireland')}
+            {field('vat_number', 'VAT Number', 'IE1234567X')}
           </div>
-
-          {/* Actions */}
-          <div className="flex items-center justify-end gap-3 pt-2">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 12, marginTop: 24 }}>
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg px-4 py-2.5 text-sm font-medium text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
+              style={{ borderRadius: 8, padding: '10px 16px', fontSize: 14, fontWeight: 500, color: '#71717a', background: 'transparent', border: 'none', cursor: 'pointer', transition: 'color 0.15s, background 0.15s', fontFamily: 'inherit' }}
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="inline-flex items-center gap-2 rounded-lg bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-black hover:bg-emerald-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                borderRadius: 8,
+                background: '#10b981',
+                padding: '10px 20px',
+                fontSize: 14,
+                fontWeight: 600,
+                color: '#000',
+                border: 'none',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                opacity: loading ? 0.5 : 1,
+                transition: 'all 0.15s',
+                fontFamily: 'inherit',
+              }}
             >
               {loading ? (
                 <>
-                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
+                  <div style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid rgba(0,0,0,0.3)', borderTopColor: '#000', animation: 'spin 0.6s linear infinite' }} />
                   Saving…
                 </>
               ) : (
                 <>
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
+                  <span style={{ fontSize: 14 }}>✓</span>
                   {client ? 'Update client' : 'Add client'}
                 </>
               )}
@@ -405,43 +466,29 @@ function ClientModal({
   )
 }
 
-// ─── Delete Confirmation Modal ───────────────────────────────────────────────
-
-function DeleteModal({
-  clientName,
-  onConfirm,
-  onCancel,
-  loading,
-}: {
-  clientName: string
-  onConfirm: () => void
-  onCancel: () => void
-  loading: boolean
-}) {
+function DeleteModal({ clientName, onConfirm, onCancel, loading }: { clientName: string; onConfirm: () => void; onCancel: () => void; loading: boolean }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onCancel} />
-      <div className="relative w-full max-w-sm rounded-2xl border border-white/10 bg-[#111113] shadow-2xl p-6">
-        <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-red-500/10 border border-red-500/20 mb-4">
-          <svg className="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-          </svg>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} onClick={onCancel} />
+      <div style={{ position: 'relative', width: '100%', maxWidth: 380, borderRadius: 16, border: '1px solid rgba(239,68,68,0.2)', background: '#111115', boxShadow: '0 25px 50px rgba(0,0,0,0.5)', padding: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 48, height: 48, borderRadius: 16, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', margin: '0 auto 16px', fontSize: 20 }}>
+          🗑
         </div>
-        <h3 className="text-base font-semibold text-white text-center mb-1">Delete client?</h3>
-        <p className="text-sm text-zinc-500 text-center mb-6 leading-relaxed">
-          Are you sure you want to delete <span className="text-white font-medium">{clientName}</span>? This action cannot be undone and existing invoices will be unlinked.
+        <h3 style={{ fontSize: 16, fontWeight: 600, color: '#fff', textAlign: 'center', marginBottom: 8 }}>Delete client?</h3>
+        <p style={{ fontSize: 14, color: '#71717a', textAlign: 'center', marginBottom: 24, lineHeight: 1.5 }}>
+          Are you sure you want to delete <span style={{ color: '#fff', fontWeight: 500 }}>{clientName}</span>? This action cannot be undone and existing invoices will be unlinked.
         </p>
-        <div className="flex gap-3">
+        <div style={{ display: 'flex', gap: 12 }}>
           <button
             onClick={onCancel}
-            className="flex-1 rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
+            style={{ flex: 1, borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', padding: '10px 16px', fontSize: 14, fontWeight: 500, color: '#71717a', cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit' }}
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
             disabled={loading}
-            className="flex-1 rounded-lg bg-red-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-400 transition-colors disabled:opacity-50"
+            style={{ flex: 1, borderRadius: 8, background: '#ef4444', border: 'none', padding: '10px 16px', fontSize: 14, fontWeight: 600, color: '#fff', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.5 : 1, transition: 'all 0.15s', fontFamily: 'inherit' }}
           >
             {loading ? 'Deleting…' : 'Delete'}
           </button>
@@ -451,9 +498,8 @@ function DeleteModal({
   )
 }
 
-// ─── Main Page Component ─────────────────────────────────────────────────────
-
 export default function ClientsPage() {
+  const router = useRouter()
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -465,7 +511,6 @@ export default function ClientsPage() {
   const [toasts, setToasts] = useState<Toast[]>([])
   const [companyId, setCompanyId] = useState<string | null>(null)
 
-  // Toast helpers
   const addToast = useCallback((type: 'success' | 'error', message: string) => {
     const id = Math.random().toString(36).slice(2)
     setToasts((t) => [...t, { id, type, message }])
@@ -475,14 +520,12 @@ export default function ClientsPage() {
     setToasts((t) => t.filter((toast) => toast.id !== id))
   }, [])
 
-  // Fetch company and clients
   useEffect(() => {
     const fetchData = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
+        if (!user) { router.push('/login'); return }
 
-        // Get company
         const { data: company } = await supabase
           .from('companies')
           .select('id')
@@ -496,31 +539,20 @@ export default function ClientsPage() {
 
         setCompanyId((company as CompanyRow).id)
 
-        // Get clients with last invoice info
         const { data: clientsData, error } = await supabase
           .from('clients')
-          .select(`
-            *,
-            invoices!left(
-              created_at
-            )
-          `)
+          .select(`*, invoices!left(created_at)`)
           .eq('company_id', (company as CompanyRow).id)
           .order('created_at', { ascending: false })
 
         if (error) throw error
 
-        // Process: get last invoice date and count per client
         const processed = (clientsData || []).map((c: Client & { invoices?: Array<{ created_at: string }> }) => {
           const invs = c.invoices || []
           const lastDate = invs.length > 0
             ? invs.reduce((latest, inv) => !latest || inv.created_at > latest ? inv.created_at : latest, '' as string | null)
             : null
-          return {
-            ...c,
-            invoice_count: invs.length,
-            last_invoice_date: lastDate,
-          }
+          return { ...c, invoice_count: invs.length, last_invoice_date: lastDate }
         })
 
         setClients(processed as Client[])
@@ -533,9 +565,8 @@ export default function ClientsPage() {
     }
 
     fetchData()
-  }, [addToast])
+  }, [addToast, router])
 
-  // Save (create or update)
   const handleSave = async (formData: ClientFormData) => {
     if (!companyId) return
     setSaving(true)
@@ -557,14 +588,7 @@ export default function ClientsPage() {
           .eq('id', editClient.id)
 
         if (error) throw error
-
-        setClients((cs) =>
-          cs.map((c) =>
-            c.id === editClient.id
-              ? { ...c, ...formData, address: formData.address, city: formData.city, postcode: formData.postcode, country: formData.country, vat_number: formData.vat_number }
-              : c
-          )
-        )
+        setClients((cs) => cs.map((c) => c.id === editClient.id ? { ...c, ...formData } : c))
         addToast('success', 'Client updated')
       } else {
         const { data: newClient, error } = await supabase
@@ -584,7 +608,6 @@ export default function ClientsPage() {
           .single()
 
         if (error) throw error
-
         const clientWithMeta: Client = { ...newClient, invoice_count: 0, last_invoice_date: null }
         setClients((cs) => [clientWithMeta, ...cs])
         addToast('success', 'Client added successfully')
@@ -599,18 +622,12 @@ export default function ClientsPage() {
     }
   }
 
-  // Delete
   const handleDelete = async () => {
     if (!deleteClient) return
     setDeleting(true)
     try {
-      const { error } = await supabase
-        .from('clients')
-        .delete()
-        .eq('id', deleteClient.id)
-
+      const { error } = await supabase.from('clients').delete().eq('id', deleteClient.id)
       if (error) throw error
-
       setClients((cs) => cs.filter((c) => c.id !== deleteClient.id))
       addToast('success', 'Client deleted')
       setDeleteClient(null)
@@ -622,136 +639,115 @@ export default function ClientsPage() {
     }
   }
 
-  // Filter
   const filtered = clients.filter((c) => {
     const q = search.toLowerCase()
-    return (
-      !q ||
-      c.name.toLowerCase().includes(q) ||
-      (c.company?.toLowerCase().includes(q) ?? false) ||
-      c.email.toLowerCase().includes(q)
-    )
+    return !q || c.name.toLowerCase().includes(q) || (c.company?.toLowerCase().includes(q) ?? false) || c.email.toLowerCase().includes(q)
   })
 
   return (
-    <div className="min-h-screen">
-      {/* Toast container */}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none">
-        {toasts.map((toast) => (
-          <div key={toast.id} className="pointer-events-auto">
-            <Toast toast={toast} onDismiss={dismissToast} />
-          </div>
-        ))}
-      </div>
+    <>
+      <style>{`
+        @keyframes slideInRight { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+      `}</style>
+      <div style={{ minHeight: '100vh' }}>
+        <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 50, display: 'flex', flexDirection: 'column', gap: 8, pointerEvents: 'none' }}>
+          {toasts.map((toast) => (
+            <div key={toast.id} style={{ pointerEvents: 'auto' }}>
+              <Toast toast={toast} onDismiss={dismissToast} />
+            </div>
+          ))}
+        </div>
 
-      {/* Page header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-white tracking-tight">Clients</h1>
-        <p className="text-sm text-zinc-400 mt-1">Manage your client profiles for faster invoicing</p>
-      </div>
+        <div style={{ marginBottom: 32 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: '#fff', letterSpacing: '-0.02em', margin: 0 }}>Clients</h1>
+          <p style={{ fontSize: 14, color: '#71717a', marginTop: 4 }}>Manage your client profiles for faster invoicing</p>
+        </div>
 
-      {/* Search bar */}
-      {!loading && clients.length > 0 && (
-        <div className="mb-6 flex items-center gap-3">
-          <div className="relative flex-1 max-w-md">
-            <svg
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600 pointer-events-none"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
+        {!loading && clients.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+            <div style={{ position: 'relative', flex: 1, maxWidth: 400 }}>
+              <div style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#52525b', fontSize: 14, zIndex: 1 }}>🔍</div>
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by name, company or email…"
+                style={{ width: '100%', boxSizing: 'border-box', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', paddingLeft: 40, paddingRight: 12, paddingTop: 10, paddingBottom: 10, fontSize: 14, color: '#fff', outline: 'none', transition: 'border-color 0.15s', fontFamily: 'inherit' }}
+              />
+              {search && (
+                <button
+                  onClick={() => setSearch('')}
+                  style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', color: '#52525b', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14, transition: 'color 0.15s' }}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#71717a' }}>
+              <span style={{ padding: '4px 10px', borderRadius: 999, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                {filtered.length} client{filtered.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+            <button
+              onClick={() => { setEditClient(null); setModalOpen(true) }}
+              style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 8, borderRadius: 8, background: '#10b981', padding: '10px 16px', fontSize: 14, fontWeight: 600, color: '#000', border: 'none', cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit', flexShrink: 0 }}
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name, company or email…"
-              className="w-full rounded-lg border border-white/10 bg-white/5 pl-10 pr-4 py-2.5 text-sm text-white placeholder-zinc-600 transition-colors focus:outline-none focus:border-emerald-500/30 focus:ring-2 focus:ring-emerald-500/20"
-            />
-            {search && (
-              <button
-                onClick={() => setSearch('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-white transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            )}
+              <span style={{ fontSize: 16 }}>+</span>
+              Add Client
+            </button>
           </div>
-          <div className="flex items-center gap-2 text-xs text-zinc-500">
-            <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10">
-              {filtered.length} client{filtered.length !== 1 ? 's' : ''}
-            </span>
+        )}
+
+        {loading ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {[1, 2, 3, 4].map((_, i) => <ClientSkeleton key={i} />)}
           </div>
-          <button
-            onClick={() => { setEditClient(null); setModalOpen(true) }}
-            className="ml-auto inline-flex items-center gap-2 rounded-lg bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-black hover:bg-emerald-400 transition-colors flex-shrink-0"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Add Client
-          </button>
-        </div>
-      )}
-
-      {/* Content */}
-      {loading ? (
-        <div className="space-y-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <ClientSkeleton key={i} />
-          ))}
-        </div>
-      ) : clients.length === 0 ? (
-        <EmptyState onAdd={() => { setEditClient(null); setModalOpen(true) }} />
-      ) : filtered.length === 0 && search ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-4">
-            <svg className="w-8 h-8 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+        ) : clients.length === 0 ? (
+          <EmptyState onAdd={() => { setEditClient(null); setModalOpen(true) }} />
+        ) : filtered.length === 0 && search ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 24px', textAlign: 'center' }}>
+            <div style={{ width: 64, height: 64, borderRadius: 16, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+              <span style={{ fontSize: 24 }}>🔍</span>
+            </div>
+            <h3 style={{ fontSize: 14, fontWeight: 500, color: '#fff', marginBottom: 4 }}>No results found</h3>
+            <p style={{ fontSize: 12, color: '#71717a' }}>No clients match "{search}"</p>
+            <button onClick={() => setSearch('')} style={{ marginTop: 12, fontSize: 12, color: '#34d399', background: 'transparent', border: 'none', cursor: 'pointer', transition: 'color 0.15s' }}>
+              Clear search
+            </button>
           </div>
-          <h3 className="text-sm font-medium text-white mb-1">No results found</h3>
-          <p className="text-xs text-zinc-500">
-            No clients match &ldquo;{search}&rdquo;
-          </p>
-          <button onClick={() => setSearch('')} className="mt-3 text-xs text-emerald-400 hover:text-emerald-300 transition-colors">
-            Clear search
-          </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filtered.map((client) => (
-            <ClientCard
-              key={client.id}
-              client={client}
-              onEdit={() => { setEditClient(client); setModalOpen(true) }}
-              onDelete={() => setDeleteClient(client)}
-            />
-          ))}
-        </div>
-      )}
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+            {filtered.map((client) => (
+              <ClientCard
+                key={client.id}
+                client={client}
+                onEdit={() => { setEditClient(client); setModalOpen(true) }}
+                onDelete={() => setDeleteClient(client)}
+              />
+            ))}
+          </div>
+        )}
 
-      {/* Modals */}
-      {modalOpen && (
-        <ClientModal
-          client={editClient}
-          onSave={handleSave}
-          onClose={() => { setModalOpen(false); setEditClient(null) }}
-          loading={saving}
-        />
-      )}
+        {modalOpen && (
+          <ClientModal
+            client={editClient}
+            onSave={handleSave}
+            onClose={() => { setModalOpen(false); setEditClient(null) }}
+            loading={saving}
+          />
+        )}
 
-      {deleteClient && (
-        <DeleteModal
-          clientName={deleteClient.name}
-          onConfirm={handleDelete}
-          onCancel={() => setDeleteClient(null)}
-          loading={deleting}
-        />
-      )}
-    </div>
+        {deleteClient && (
+          <DeleteModal
+            clientName={deleteClient.name}
+            onConfirm={handleDelete}
+            onCancel={() => setDeleteClient(null)}
+            loading={deleting}
+          />
+        )}
+      </div>
+    </>
   )
 }

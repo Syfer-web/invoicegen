@@ -1,30 +1,31 @@
-'use client';
+'use client'
 
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+export const dynamic = 'force-dynamic'
 
 interface Product {
-  id: string;
-  name: string;
-  description: string | null;
-  unit_price: number;
-  unit: 'item' | 'hour' | 'day' | 'project';
-  category: 'Services' | 'Products' | 'Custom';
-  vat_rate: number;
-  is_active: boolean;
-  created_at: string;
+  id: string
+  name: string
+  description: string | null
+  unit_price: number
+  unit: 'item' | 'hour' | 'day' | 'project'
+  category: 'Services' | 'Products' | 'Custom'
+  vat_rate: number
+  is_active: boolean
+  created_at: string
 }
 
 interface ProductForm {
-  name: string;
-  description: string;
-  unit_price: string;
-  unit: Product['unit'];
-  category: Product['category'];
-  vat_rate: number;
-  is_active: boolean;
+  name: string
+  description: string
+  unit_price: string
+  unit: Product['unit']
+  category: Product['category']
+  vat_rate: number
+  is_active: boolean
 }
 
 const EMPTY_FORM: ProductForm = {
@@ -35,128 +36,122 @@ const EMPTY_FORM: ProductForm = {
   category: 'Services',
   vat_rate: 21,
   is_active: true,
-};
+}
 
 const UNITS = [
   { value: 'item', label: 'per item' },
   { value: 'hour', label: 'per hour' },
   { value: 'day', label: 'per day' },
   { value: 'project', label: 'per project' },
-] as const;
+] as const
 
-const CATEGORIES = ['Services', 'Products', 'Custom'] as const;
-const VAT_OPTIONS = [0, 20, 21, 19] as const;
-const CURRENCY = '€';
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+const CATEGORIES = ['Services', 'Products', 'Custom'] as const
+const VAT_OPTIONS = [0, 20, 21, 19] as const
+const CURRENCY = '€'
 
 function formatPrice(price: number) {
-  return `${CURRENCY}${price.toFixed(2)}`;
+  return `${CURRENCY}${price.toFixed(2)}`
 }
 
 function resetForm(): ProductForm {
-  return { ...EMPTY_FORM };
+  return { ...EMPTY_FORM }
 }
-
-// ─── Skeleton ─────────────────────────────────────────────────────────────────
 
 function CardSkeleton() {
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 animate-pulse">
-      <div className="flex items-start justify-between mb-3">
-        <div className="h-5 w-2/3 bg-zinc-800 rounded" />
-        <div className="h-5 w-16 bg-zinc-800 rounded-full" />
+    <div style={{
+      background: '#18181B',
+      border: '1px solid rgba(255,255,255,0.07)',
+      borderRadius: 12,
+      padding: 20,
+      animation: 'pulse 2s ease-in-out infinite',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
+        <div style={{ height: 20, width: '66%', borderRadius: 6, background: 'rgba(255,255,255,0.05)' }} />
+        <div style={{ height: 20, width: 64, borderRadius: 999, background: 'rgba(255,255,255,0.05)' }} />
       </div>
-      <div className="h-3 w-full bg-zinc-800 rounded mb-2" />
-      <div className="h-3 w-4/5 bg-zinc-800 rounded mb-6" />
-      <div className="flex items-center justify-between">
-        <div className="h-6 w-24 bg-zinc-800 rounded" />
-        <div className="h-8 w-16 bg-zinc-800 rounded" />
+      <div style={{ height: 12, width: '100%', borderRadius: 6, background: 'rgba(255,255,255,0.05)', marginBottom: 8 }} />
+      <div style={{ height: 12, width: '80%', borderRadius: 6, background: 'rgba(255,255,255,0.05)', marginBottom: 24 }} />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ height: 24, width: 96, borderRadius: 6, background: 'rgba(255,255,255,0.05)' }} />
+        <div style={{ height: 32, width: 64, borderRadius: 8, background: 'rgba(255,255,255,0.05)' }} />
       </div>
     </div>
-  );
+  )
 }
 
-// ─── Toast Feedback ───────────────────────────────────────────────────────────
-
-type ToastKind = 'success' | 'error';
+type ToastKind = 'success' | 'error'
 
 function Toast({ message, kind, onDone }: { message: string; kind: ToastKind; onDone: () => void }) {
   useEffect(() => {
-    const t = setTimeout(onDone, 3000);
-    return () => clearTimeout(t);
-  }, [onDone]);
+    const t = setTimeout(onDone, 3000)
+    return () => clearTimeout(t)
+  }, [onDone])
 
+  const isSuccess = kind === 'success'
   return (
     <div
-      className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-medium shadow-2xl transition-all duration-300 ${
-        kind === 'success'
-          ? 'bg-emerald-950 border-emerald-800 text-emerald-300'
-          : 'bg-red-950 border-red-800 text-red-300'
-      }`}
+      style={{
+        position: 'fixed',
+        bottom: 24,
+        right: 24,
+        zIndex: 50,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '12px 16px',
+        borderRadius: 12,
+        border: `1px solid ${isSuccess ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`,
+        fontSize: 14,
+        fontWeight: 500,
+        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+        background: isSuccess ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+        color: isSuccess ? '#6ee7b7' : '#fca5a5',
+        animation: 'slideInRight 0.3s ease',
+      }}
     >
-      {kind === 'success' ? (
-        <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-        </svg>
-      ) : (
-        <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      )}
+      <span style={{ fontSize: 16 }}>{isSuccess ? '✓' : '✕'}</span>
       {message}
     </div>
-  );
+  )
 }
 
-// ─── Delete Confirm Dialog ────────────────────────────────────────────────────
-
-function DeleteDialog({
-  product,
-  onConfirm,
-  onCancel,
-}: {
-  product: Product;
-  onConfirm: () => void;
-  onCancel: () => void;
-}) {
+function DeleteDialog({ product, onConfirm, onCancel }: { product: Product; onConfirm: () => void; onCancel: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onCancel} />
-      <div className="relative bg-zinc-900 border border-zinc-800 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
-        <h3 className="text-lg font-semibold text-white mb-2">Delete product?</h3>
-        <p className="text-sm text-zinc-400 mb-6">
-          <span className="font-medium text-white">{product.name}</span> will be permanently removed. This cannot be undone.
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} onClick={onCancel} />
+      <div style={{ position: 'relative', background: '#18181B', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 16, padding: 24, width: '100%', maxWidth: 380, boxShadow: '0 25px 50px rgba(0,0,0,0.5)' }}>
+        <h3 style={{ fontSize: 18, fontWeight: 600, color: '#fff', marginBottom: 8 }}>Delete product?</h3>
+        <p style={{ fontSize: 14, color: '#71717a', marginBottom: 24 }}>
+          <span style={{ fontWeight: 500, color: '#fff' }}>{product.name}</span> will be permanently removed. This cannot be undone.
         </p>
-        <div className="flex gap-3">
+        <div style={{ display: 'flex', gap: 12 }}>
           <button
             onClick={onCancel}
-            className="flex-1 px-4 py-2 rounded-lg border border-zinc-700 text-zinc-300 text-sm font-medium hover:bg-zinc-800 transition-colors"
+            style={{ flex: 1, padding: '10px 16px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: '#71717a', fontSize: 14, fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit' }}
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
-            className="flex-1 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-medium transition-colors"
+            style={{ flex: 1, padding: '10px 16px', borderRadius: 8, background: '#dc2626', border: 'none', color: '#fff', fontSize: 14, fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit' }}
           >
             Delete
           </button>
         </div>
       </div>
     </div>
-  );
+  )
 }
-
-// ─── Add/Edit Modal ───────────────────────────────────────────────────────────
 
 function ProductModal({
   initial,
   onSave,
   onClose,
 }: {
-  initial?: Product;
-  onSave: (data: ProductForm) => Promise<void>;
-  onClose: () => void;
+  initial?: Product
+  onSave: (data: ProductForm) => Promise<void>
+  onClose: () => void
 }) {
   const [form, setForm] = useState<ProductForm>(
     initial
@@ -170,89 +165,88 @@ function ProductModal({
           is_active: initial.is_active,
         }
       : resetForm()
-  );
-  const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState<Partial<Record<keyof ProductForm, string>>>({});
+  )
+  const [saving, setSaving] = useState(false)
+  const [errors, setErrors] = useState<Partial<Record<keyof ProductForm, string>>>({})
 
   function validate() {
-    const e: Partial<Record<keyof ProductForm, string>> = {};
-    if (!form.name.trim()) e.name = 'Name is required';
-    const price = parseFloat(form.unit_price);
-    if (isNaN(price) || price < 0) e.unit_price = 'Enter a valid price';
-    return e;
+    const e: Partial<Record<keyof ProductForm, string>> = {}
+    if (!form.name.trim()) e.name = 'Name is required'
+    const price = parseFloat(form.unit_price)
+    if (isNaN(price) || price < 0) e.unit_price = 'Enter a valid price'
+    return e
   }
 
   async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const errs = validate();
-    if (Object.keys(errs).length) { setErrors(errs); return; }
-    setErrors({});
-    setSaving(true);
+    e.preventDefault()
+    const errs = validate()
+    if (Object.keys(errs).length) { setErrors(errs); return }
+    setErrors({})
+    setSaving(true)
     try {
-      await onSave({ ...form, unit_price: form.unit_price });
+      await onSave({ ...form, unit_price: form.unit_price })
     } finally {
-      setSaving(false);
+      setSaving(false)
     }
   }
 
   function set(field: keyof ProductForm, value: string | number | boolean) {
-    setForm(f => ({ ...f, [field]: value }));
-    if (errors[field]) setErrors(e => ({ ...e, [field]: undefined }));
+    setForm(f => ({ ...f, [field]: value }))
+    if (errors[field as keyof typeof errors]) setErrors(e => ({ ...e, [field]: undefined }))
   }
 
+  const inputStyle = (hasError?: string) => ({
+    width: '100%',
+    boxSizing: 'border-box',
+    background: '#09090B',
+    border: `1px solid ${hasError ? '#ef4444' : 'rgba(255,255,255,0.1)'}`,
+    borderRadius: 8,
+    padding: '10px 12px',
+    fontSize: 14,
+    color: '#fff',
+    outline: 'none',
+    fontFamily: 'inherit',
+    transition: 'border-color 0.15s',
+  })
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-zinc-800">
-          <h2 className="text-lg font-semibold text-white">
-            {initial ? 'Edit product' : 'Add product'}
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-zinc-500 hover:text-zinc-300 transition-colors p-1"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} onClick={onClose} />
+      <div style={{ position: 'relative', background: '#18181B', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, width: '100%', maxWidth: 520, boxShadow: '0 25px 50px rgba(0,0,0,0.5)', maxHeight: '90vh', overflowY: 'auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '24px 24px 16px' }}>
+          <h2 style={{ fontSize: 18, fontWeight: 600, color: '#fff', margin: 0 }}>{initial ? 'Edit product' : 'Add product'}</h2>
+          <button onClick={onClose} style={{ color: '#71717a', cursor: 'pointer', background: 'transparent', border: 'none', fontSize: 20, lineHeight: 1, transition: 'color 0.15s', padding: 4 }}>✕</button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {/* Name */}
-          <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-1.5">Name *</label>
+        <form onSubmit={handleSubmit} style={{ padding: '0 24px 24px' }}>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#a1a1aa', marginBottom: 6 }}>Name *</label>
             <input
               type="text"
               value={form.name}
               onChange={e => set('name', e.target.value)}
               placeholder="e.g. Web Development"
-              className={`w-full bg-zinc-950 border rounded-lg px-3 py-2.5 text-sm text-white placeholder-zinc-600 outline-none transition-colors focus:ring-2 focus:ring-emerald-500/50 ${
-                errors.name ? 'border-red-500' : 'border-zinc-700 focus:border-emerald-500'
-              }`}
+              style={inputStyle(errors.name)}
             />
-            {errors.name && <p className="mt-1 text-xs text-red-400">{errors.name}</p>}
+            {errors.name && <p style={{ marginTop: 4, fontSize: 12, color: '#f87171' }}>{errors.name}</p>}
           </div>
 
-          {/* Description */}
-          <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-1.5">Description</label>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#a1a1aa', marginBottom: 6 }}>Description</label>
             <textarea
               value={form.description}
               onChange={e => set('description', e.target.value)}
               placeholder="Optional details..."
               rows={3}
-              className="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-white placeholder-zinc-600 outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-colors resize-none"
+              style={{ ...inputStyle(), resize: 'none' }}
             />
           </div>
 
-          {/* Price + Unit row */}
-          <div className="grid grid-cols-2 gap-4">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-1.5">Unit price *</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm">{CURRENCY}</span>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#a1a1aa', marginBottom: 6 }}>Unit price *</label>
+              <div style={{ position: 'relative' }}>
+                <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#71717a', fontSize: 14 }}>{CURRENCY}</span>
                 <input
                   type="number"
                   step="0.01"
@@ -260,20 +254,18 @@ function ProductModal({
                   value={form.unit_price}
                   onChange={e => set('unit_price', e.target.value)}
                   placeholder="0.00"
-                  className={`w-full bg-zinc-950 border rounded-lg pl-7 pr-3 py-2.5 text-sm text-white placeholder-zinc-600 outline-none transition-colors focus:ring-2 focus:ring-emerald-500/50 ${
-                    errors.unit_price ? 'border-red-500' : 'border-zinc-700 focus:border-emerald-500'
-                  }`}
+                  style={{ ...inputStyle(errors.unit_price), paddingLeft: 28 }}
                 />
               </div>
-              {errors.unit_price && <p className="mt-1 text-xs text-red-400">{errors.unit_price}</p>}
+              {errors.unit_price && <p style={{ marginTop: 4, fontSize: 12, color: '#f87171' }}>{errors.unit_price}</p>}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-1.5">Unit</label>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#a1a1aa', marginBottom: 6 }}>Unit</label>
               <select
                 value={form.unit}
                 onChange={e => set('unit', e.target.value as Product['unit'])}
-                className="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-white outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-colors cursor-pointer"
+                style={inputStyle()}
               >
                 {UNITS.map(u => (
                   <option key={u.value} value={u.value}>{u.label}</option>
@@ -282,14 +274,13 @@ function ProductModal({
             </div>
           </div>
 
-          {/* Category + VAT row */}
-          <div className="grid grid-cols-2 gap-4">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-1.5">Category</label>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#a1a1aa', marginBottom: 6 }}>Category</label>
               <select
                 value={form.category}
                 onChange={e => set('category', e.target.value as Product['category'])}
-                className="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-white outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-colors cursor-pointer"
+                style={inputStyle()}
               >
                 {CATEGORIES.map(c => (
                   <option key={c} value={c}>{c}</option>
@@ -298,11 +289,11 @@ function ProductModal({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-1.5">VAT rate</label>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#a1a1aa', marginBottom: 6 }}>VAT rate</label>
               <select
                 value={form.vat_rate}
                 onChange={e => set('vat_rate', Number(e.target.value))}
-                className="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-white outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-colors cursor-pointer"
+                style={inputStyle()}
               >
                 {VAT_OPTIONS.map(v => (
                   <option key={v} value={v}>{v}%</option>
@@ -311,47 +302,74 @@ function ProductModal({
             </div>
           </div>
 
-          {/* Active toggle */}
-          <div className="flex items-center justify-between py-2">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', marginBottom: 16 }}>
             <div>
-              <p className="text-sm font-medium text-zinc-300">Active</p>
-              <p className="text-xs text-zinc-500">Inactive products are hidden from new invoices</p>
+              <p style={{ fontSize: 14, fontWeight: 500, color: '#a1a1aa', margin: 0 }}>Active</p>
+              <p style={{ fontSize: 12, color: '#71717a', margin: '2px 0 0' }}>Inactive products are hidden from new invoices</p>
             </div>
             <button
               type="button"
               onClick={() => set('is_active', !form.is_active)}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500/50 ${
-                form.is_active ? 'bg-emerald-500' : 'bg-zinc-700'
-              }`}
+              style={{
+                position: 'relative',
+                width: 44,
+                height: 24,
+                borderRadius: 999,
+                transition: 'background 0.2s',
+                background: form.is_active ? '#10b981' : '#3f3f46',
+                border: 'none',
+                cursor: 'pointer',
+              }}
             >
               <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  form.is_active ? 'translate-x-6' : 'translate-x-1'
-                }`}
+                style={{
+                  position: 'absolute',
+                  top: 3,
+                  width: 18,
+                  height: 18,
+                  borderRadius: '50%',
+                  background: '#fff',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                  transition: 'transform 0.2s',
+                  transform: form.is_active ? 'translateX(23px)' : 'translateX(3px)',
+                }}
               />
             </button>
           </div>
 
-          {/* Actions */}
-          <div className="flex gap-3 pt-2">
+          <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2.5 rounded-lg border border-zinc-700 text-zinc-300 text-sm font-medium hover:bg-zinc-800 transition-colors"
+              style={{ flex: 1, padding: '10px 16px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: '#71717a', fontSize: 14, fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit' }}
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-medium transition-colors flex items-center justify-center gap-2"
+              style={{
+                flex: 1,
+                padding: '10px 16px',
+                borderRadius: 8,
+                background: '#10b981',
+                border: 'none',
+                color: '#000',
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: saving ? 'not-allowed' : 'pointer',
+                opacity: saving ? 0.5 : 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                transition: 'all 0.15s',
+                fontFamily: 'inherit',
+              }}
             >
               {saving ? (
                 <>
-                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
+                  <div style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid rgba(0,0,0,0.3)', borderTopColor: '#000', animation: 'spin 0.6s linear infinite' }} />
                   Saving…
                 </>
               ) : (
@@ -362,47 +380,42 @@ function ProductModal({
         </form>
       </div>
     </div>
-  );
+  )
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
-
 export default function ProductsPage() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<'All' | Product['category']>('All');
-  const [showModal, setShowModal] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
-  const [toast, setToast] = useState<{ message: string; kind: ToastKind } | null>(null);
+  const router = useRouter()
+  const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [activeTab, setActiveTab] = useState<'All' | Product['category']>('All')
+  const [showModal, setShowModal] = useState(false)
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+  const [deletingProduct, setDeletingProduct] = useState<Product | null>(null)
+  const [toast, setToast] = useState<{ message: string; kind: ToastKind } | null>(null)
 
   function showToast(message: string, kind: ToastKind) {
-    setToast({ message, kind });
+    setToast({ message, kind })
   }
 
-  // ── Fetch ──────────────────────────────────────────────────────────────────
-
   const fetchProducts = useCallback(async () => {
-    setLoading(true);
+    setLoading(true)
     const { data, error } = await supabase
       .from('products')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
 
     if (!error && data) {
-      setProducts(data as Product[]);
+      setProducts(data as Product[])
     } else {
-      showToast('Failed to load products', 'error');
+      showToast('Failed to load products', 'error')
     }
-    setLoading(false);
-  }, [supabase]);
+    setLoading(false)
+  }, [])
 
   useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
-
-  // ── CRUD ──────────────────────────────────────────────────────────────────
+    fetchProducts()
+  }, [fetchProducts])
 
   async function handleSave(form: ProductForm) {
     const payload = {
@@ -413,261 +426,255 @@ export default function ProductsPage() {
       category: form.category,
       vat_rate: form.vat_rate,
       is_active: form.is_active,
-    };
+    }
 
-    let result;
+    let result
     if (editingProduct) {
-      result = await supabase
-        .from('products')
-        .update(payload)
-        .eq('id', editingProduct.id)
-        .select()
-        .single();
+      result = await supabase.from('products').update(payload).eq('id', editingProduct.id).select().single()
     } else {
-      result = await supabase
-        .from('products')
-        .insert(payload)
-        .select()
-        .single();
+      result = await supabase.from('products').insert(payload).select().single()
     }
 
-    if (result.error) {
-      showToast(result.error.message || 'Failed to save product', 'error');
-      return;
+    if (result?.error) {
+      showToast(result.error.message || 'Failed to save product', 'error')
+      return
     }
 
-    await fetchProducts();
-    setShowModal(false);
-    setEditingProduct(null);
-    showToast(editingProduct ? 'Product updated' : 'Product added', 'success');
+    await fetchProducts()
+    setShowModal(false)
+    setEditingProduct(null)
+    showToast(editingProduct ? 'Product updated' : 'Product added', 'success')
   }
 
   async function handleDelete(product: Product) {
-    const { error } = await supabase.from('products').delete().eq('id', product.id);
+    const { error } = await supabase.from('products').delete().eq('id', product.id)
     if (error) {
-      showToast(error.message || 'Failed to delete', 'error');
+      showToast(error.message || 'Failed to delete', 'error')
     } else {
-      await fetchProducts();
-      showToast('Product deleted', 'success');
+      await fetchProducts()
+      showToast('Product deleted', 'success')
     }
-    setDeletingProduct(null);
+    setDeletingProduct(null)
   }
 
-  // ── Filtering ─────────────────────────────────────────────────────────────
-
   const filtered = products.filter(p => {
-    const matchesTab = activeTab === 'All' || p.category === activeTab;
-    const matchesSearch =
-      !search ||
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      (p.description ?? '').toLowerCase().includes(search.toLowerCase());
-    return matchesTab && matchesSearch;
-  });
+    const matchesTab = activeTab === 'All' || p.category === activeTab
+    const matchesSearch = !search || p.name.toLowerCase().includes(search.toLowerCase()) || (p.description ?? '').toLowerCase().includes(search.toLowerCase())
+    return matchesTab && matchesSearch
+  })
 
   const tabCounts: Record<string, number> = {
     All: products.length,
     Services: products.filter(p => p.category === 'Services').length,
     Products: products.filter(p => p.category === 'Products').length,
     Custom: products.filter(p => p.category === 'Custom').length,
-  };
+  }
 
-  // ─── Render ───────────────────────────────────────────────────────────────
+  const CATEGORY_COLORS: Record<string, { bg: string; border: string; text: string }> = {
+    Services: { bg: 'rgba(29,78,216,0.15)', border: 'rgba(29,78,216,0.3)', text: '#93c5fd' },
+    Products: { bg: 'rgba(126,34,206,0.15)', border: 'rgba(126,34,206,0.3)', text: '#c4b5fd' },
+    Custom: { bg: 'rgba(180,83,9,0.15)', border: 'rgba(180,83,9,0.3)', text: '#fcd34d' },
+  }
 
   return (
     <>
-      <div className="min-h-screen bg-[#09090B] text-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 space-y-8">
+      <style>{`
+        @keyframes slideInRight { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+      `}</style>
+      <div style={{ minHeight: '100vh', background: '#09090B', color: '#fff' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px', display: 'flex', flexDirection: 'column', gap: 32 }}>
 
-          {/* ── Header ── */}
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-white">Products & Services</h1>
-            <p className="mt-1 text-sm text-zinc-400">Your saved items — click to add to any invoice</p>
+            <h1 style={{ fontSize: 24, fontWeight: 700, color: '#fff', letterSpacing: '-0.02em', margin: 0 }}>Products & Services</h1>
+            <p style={{ fontSize: 14, color: '#71717a', marginTop: 4 }}>Your saved items — click to add to any invoice</p>
           </div>
 
-          {/* ── Controls ── */}
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-            {/* Search */}
-            <div className="relative w-full sm:w-80">
-              <svg
-                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <input
-                type="text"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Search products..."
-                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg pl-9 pr-4 py-2.5 text-sm text-white placeholder-zinc-500 outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-colors"
-              />
-            </div>
-
-            {/* Add button */}
-            <button
-              onClick={() => { setEditingProduct(null); setShowModal(true); }}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium transition-colors shadow-lg shadow-emerald-900/20 whitespace-nowrap"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Add Product
-            </button>
-          </div>
-
-          {/* ── Category Tabs ── */}
-          <div className="flex gap-1 bg-zinc-900/60 p-1 rounded-xl border border-zinc-800 w-fit">
-            {(['All', ...CATEGORIES] as const).map(tab => (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'flex', flexDirection: 'row', gap: 16, alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+              <div style={{ position: 'relative', width: '100%', maxWidth: 320 }}>
+                <div style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#52525b', fontSize: 14, zIndex: 1 }}>🔍</div>
+                <input
+                  type="text"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search products..."
+                  style={{ width: '100%', boxSizing: 'border-box', background: '#18181B', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 8, paddingLeft: 36, paddingRight: 12, paddingTop: 10, paddingBottom: 10, fontSize: 14, color: '#fff', outline: 'none', transition: 'border-color 0.15s', fontFamily: 'inherit' }}
+                />
+              </div>
               <button
-                key={tab}
-                onClick={() => setActiveTab(tab as typeof activeTab)}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  activeTab === tab
-                    ? 'bg-emerald-600 text-white shadow'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
-                }`}
+                onClick={() => { setEditingProduct(null); setShowModal(true) }}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderRadius: 8, background: '#10b981', color: '#fff', fontSize: 14, fontWeight: 500, border: 'none', cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit', flexShrink: 0 }}
               >
-                {tab}
-                <span
-                  className={`text-xs px-1.5 py-0.5 rounded-full ${
-                    activeTab === tab ? 'bg-emerald-500/30' : 'bg-zinc-800'
-                  }`}
-                >
-                  {tabCounts[tab]}
-                </span>
+                <span style={{ fontSize: 16 }}>+</span>
+                Add Product
               </button>
-            ))}
-          </div>
+            </div>
 
-          {/* ── Content ── */}
-          {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {Array.from({ length: 6 }).map((_, i) => <CardSkeleton key={i} />)}
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-24 text-center space-y-4">
-              <div className="w-16 h-16 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center">
-                <svg className="w-8 h-8 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-zinc-300 font-medium">No products yet</p>
-                <p className="text-sm text-zinc-500 mt-1">
-                  {search ? 'No results match your search.' : 'Add your first product or service to get started.'}
-                </p>
-              </div>
-              {!search && (
-                <button
-                  onClick={() => { setEditingProduct(null); setShowModal(true); }}
-                  className="mt-2 flex items-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium transition-colors"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                  Add your first product
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filtered.map(product => (
-                <div
-                  key={product.id}
-                  className="group bg-zinc-900 border border-zinc-800 rounded-xl p-5 flex flex-col gap-3 hover:border-zinc-700 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-black/20 transition-all duration-200"
-                >
-                  {/* Top row: name + badge */}
-                  <div className="flex items-start justify-between gap-3">
-                    <h3 className="font-semibold text-white text-base leading-snug">{product.name}</h3>
-                    <span
-                      className={`flex-shrink-0 text-xs font-medium px-2.5 py-1 rounded-full border ${
-                        product.category === 'Services'
-                          ? 'bg-blue-950/60 border-blue-800/50 text-blue-300'
-                          : product.category === 'Products'
-                          ? 'bg-purple-950/60 border-purple-800/50 text-purple-300'
-                          : 'bg-amber-950/60 border-amber-800/50 text-amber-300'
-                      }`}
-                    >
-                      {product.category}
+            <div style={{ display: 'flex', gap: 4, background: 'rgba(255,255,255,0.03)', padding: 4, borderRadius: 12, border: '1px solid rgba(255,255,255,0.07)', width: 'fit-content' }}>
+              {(['All', ...CATEGORIES] as const).map(tab => {
+                const isActive = activeTab === tab
+                return (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab as typeof activeTab)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      padding: '8px 16px',
+                      borderRadius: 8,
+                      fontSize: 14,
+                      fontWeight: 500,
+                      transition: 'all 0.15s',
+                      background: isActive ? '#10b981' : 'transparent',
+                      color: isActive ? '#fff' : '#71717a',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                    }}
+                  >
+                    {tab}
+                    <span style={{
+                      fontSize: 11,
+                      padding: '2px 6px',
+                      borderRadius: 999,
+                      background: isActive ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.1)',
+                    }}>
+                      {tabCounts[tab]}
                     </span>
-                  </div>
-
-                  {/* Description */}
-                  {product.description && (
-                    <p className="text-xs text-zinc-500 leading-relaxed line-clamp-2">
-                      {product.description}
-                    </p>
-                  )}
-
-                  {/* Price row */}
-                  <div className="flex items-center justify-between mt-auto pt-2 border-t border-zinc-800">
-                    <div>
-                      <p className="text-xl font-bold text-white tabular-nums">
-                        {formatPrice(product.unit_price)}
-                      </p>
-                      <p className="text-xs text-zinc-500 mt-0.5">
-                        {UNITS.find(u => u.value === product.unit)?.label}
-                        {product.vat_rate > 0 && ` · incl. ${product.vat_rate}% VAT`}
-                      </p>
-                    </div>
-
-                    {!product.is_active && (
-                      <span className="text-xs text-zinc-600 border border-zinc-700 px-2 py-1 rounded-full">
-                        Inactive
-                      </span>
-                    )}
-
-                    {/* Actions */}
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={() => { setEditingProduct(product); setShowModal(true); }}
-                        className="p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
-                        title="Edit"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={() => setDeletingProduct(product)}
-                        className="p-2 rounded-lg text-zinc-400 hover:text-red-400 hover:bg-zinc-800 transition-colors"
-                        title="Delete"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                  </button>
+                )
+              })}
             </div>
-          )}
+
+            {loading ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
+                {Array.from({ length: 6 }).map((_, i) => <CardSkeleton key={i} />)}
+              </div>
+            ) : filtered.length === 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '96px 24px', textAlign: 'center', gap: 16 }}>
+                <div style={{ width: 64, height: 64, borderRadius: 16, background: '#18181B', border: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <span style={{ fontSize: 24 }}>📦</span>
+                </div>
+                <div>
+                  <p style={{ fontSize: 14, fontWeight: 500, color: '#a1a1aa', margin: 0 }}>{search ? 'No results found' : 'No products yet'}</p>
+                  <p style={{ fontSize: 14, color: '#71717a', marginTop: 4 }}>
+                    {search ? 'No results match your search.' : 'Add your first product or service to get started.'}
+                  </p>
+                </div>
+                {!search && (
+                  <button
+                    onClick={() => { setEditingProduct(null); setShowModal(true) }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderRadius: 8, background: '#10b981', color: '#fff', fontSize: 14, fontWeight: 500, border: 'none', cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit' }}
+                  >
+                    <span style={{ fontSize: 16 }}>+</span>
+                    Add your first product
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
+                {filtered.map(product => {
+                  const catStyle = CATEGORY_COLORS[product.category] || CATEGORY_COLORS.Custom
+                  return (
+                    <div
+                      key={product.id}
+                      style={{
+                        background: '#18181B',
+                        border: '1px solid rgba(255,255,255,0.07)',
+                        borderRadius: 12,
+                        padding: 20,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 12,
+                        transition: 'all 0.2s',
+                        cursor: 'default',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                        <h3 style={{ fontSize: 16, fontWeight: 600, color: '#fff', margin: 0, lineHeight: 1.4 }}>{product.name}</h3>
+                        <span style={{
+                          flexShrink: 0,
+                          fontSize: 11,
+                          fontWeight: 500,
+                          padding: '4px 10px',
+                          borderRadius: 999,
+                          background: catStyle.bg,
+                          border: `1px solid ${catStyle.border}`,
+                          color: catStyle.text,
+                        }}>
+                          {product.category}
+                        </span>
+                      </div>
+
+                      {product.description && (
+                        <p style={{ fontSize: 12, color: '#71717a', lineHeight: 1.5, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                          {product.description}
+                        </p>
+                      )}
+
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+                        <div>
+                          <p style={{ fontSize: 20, fontWeight: 700, color: '#fff', margin: 0 }}>{formatPrice(product.unit_price)}</p>
+                          <p style={{ fontSize: 12, color: '#71717a', marginTop: 2, margin: '2px 0 0' }}>
+                            {UNITS.find(u => u.value === product.unit)?.label}
+                            {product.vat_rate > 0 && ` · incl. ${product.vat_rate}% VAT`}
+                          </p>
+                        </div>
+
+                        {!product.is_active && (
+                          <span style={{ fontSize: 11, color: '#71717a', border: '1px solid rgba(255,255,255,0.1)', padding: '4px 8px', borderRadius: 999 }}>
+                            Inactive
+                          </span>
+                        )}
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <button
+                            onClick={() => { setEditingProduct(product); setShowModal(true) }}
+                            style={{ padding: 8, borderRadius: 8, color: '#71717a', background: 'transparent', border: 'none', cursor: 'pointer', transition: 'color 0.15s, background 0.15s', fontSize: 16 }}
+                            title="Edit"
+                          >
+                            ✎
+                          </button>
+                          <button
+                            onClick={() => setDeletingProduct(product)}
+                            style={{ padding: 8, borderRadius: 8, color: '#71717a', background: 'transparent', border: 'none', cursor: 'pointer', transition: 'color 0.15s, background 0.15s', fontSize: 16 }}
+                            title="Delete"
+                          >
+                            🗑
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
         </div>
+
+        {showModal && (
+          <ProductModal
+            initial={editingProduct ?? undefined}
+            onSave={handleSave}
+            onClose={() => { setShowModal(false); setEditingProduct(null) }}
+          />
+        )}
+
+        {deletingProduct && (
+          <DeleteDialog
+            product={deletingProduct}
+            onConfirm={() => handleDelete(deletingProduct)}
+            onCancel={() => setDeletingProduct(null)}
+          />
+        )}
+
+        {toast && (
+          <Toast message={toast.message} kind={toast.kind} onDone={() => setToast(null)} />
+        )}
       </div>
-
-      {/* ── Modals & Overlays ── */}
-      {showModal && (
-        <ProductModal
-          initial={editingProduct ?? undefined}
-          onSave={handleSave}
-          onClose={() => { setShowModal(false); setEditingProduct(null); }}
-        />
-      )}
-
-      {deletingProduct && (
-        <DeleteDialog
-          product={deletingProduct}
-          onConfirm={() => handleDelete(deletingProduct)}
-          onCancel={() => setDeletingProduct(null)}
-        />
-      )}
-
-      {toast && (
-        <Toast message={toast.message} kind={toast.kind} onDone={() => setToast(null)} />
-      )}
     </>
-  );
+  )
 }

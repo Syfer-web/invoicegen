@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import {
   calculateNextRun,
@@ -14,7 +15,7 @@ import {
   type TemplateItem,
 } from '@/lib/recurring'
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+export const dynamic = 'force-dynamic'
 
 type RecurringProfile = {
   id: string
@@ -36,8 +37,6 @@ type RecurringProfile = {
 
 type Client = { id: string; name: string; email: string }
 type Product = { id: string; name: string; unit_price: number; unit: string; vat_rate: number }
-
-// ─── Styles ──────────────────────────────────────────────────────────────────
 
 const S = {
   page: { maxWidth: 1200, margin: '0 auto', padding: '32px 24px' },
@@ -90,14 +89,13 @@ const S = {
   statValue: { fontSize: 13, fontWeight: 600, color: '#fff' },
   cardFooter: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.05)' },
   lastGen: { fontSize: 12, color: '#52525b' },
-  actions: { display: 'flex', gap: 4, opacity: 0, transition: 'opacity 0.2s' } as any,
+  actions: { display: 'flex', gap: 4, opacity: 0, transition: 'opacity 0.2s' } as React.CSSProperties,
   iconBtn: (color: string) => ({
     width: 30, height: 30, borderRadius: 8,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     background: 'transparent', border: 'none', cursor: 'pointer',
     color, transition: 'all 0.15s',
   }),
-  // Modal
   overlay: {
     position: 'fixed' as const, inset: 0, zIndex: 50,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -232,8 +230,6 @@ const S = {
   },
 }
 
-// ─── Keyframe injection ──────────────────────────────────────────────────────
-
 const styleTag = `
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
@@ -247,16 +243,12 @@ if (typeof document !== 'undefined') {
   document.head.appendChild(el)
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
 const FREQ_COLORS: Record<string, string> = {
   weekly: '#3b82f6',
   biweekly: '#a855f7',
   monthly: '#10b981',
   quarterly: '#f59e0b',
 }
-
-// ─── Toast Component ─────────────────────────────────────────────────────────
 
 function Toast({ message, type, onDismiss }: { message: string; type: string; onDismiss: () => void }) {
   useEffect(() => {
@@ -265,18 +257,12 @@ function Toast({ message, type, onDismiss }: { message: string; type: string; on
   }, [onDismiss])
 
   return (
-    <div style={S.toast(type) as any}>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        {type === 'success'
-          ? <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-          : <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />}
-      </svg>
+    <div style={S.toast(type)}>
+      <span style={{ fontSize: 16 }}>{type === 'success' ? '✓' : '✕'}</span>
       {message}
     </div>
   )
 }
-
-// ─── Skeleton ────────────────────────────────────────────────────────────────
 
 function CardSkeleton() {
   return (
@@ -298,8 +284,6 @@ function CardSkeleton() {
   )
 }
 
-// ─── Preview Next Run Dates ───────────────────────────────────────────────────
-
 function NextRunPreview({ startDate, frequency }: { startDate: string; frequency: Frequency }) {
   const runs = getNextRuns(new Date(startDate), frequency, 3)
   return (
@@ -315,8 +299,6 @@ function NextRunPreview({ startDate, frequency }: { startDate: string; frequency
     </div>
   )
 }
-
-// ─── Create/Edit Modal ───────────────────────────────────────────────────────
 
 function RecurringModal({
   profile,
@@ -380,13 +362,10 @@ function RecurringModal({
         <div style={S.modalHeader}>
           <h2 style={S.modalTitle}>{profile ? 'Edit Recurring Invoice' : 'New Recurring Invoice'}</h2>
           <button style={S.closeBtn} onClick={onClose}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <span style={{ fontSize: 20, lineHeight: 1 }}>✕</span>
           </button>
         </div>
 
-        {/* Step indicator */}
         <div style={S.stepRow}>
           {[1, 2].map(s => (
             <div key={s} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -400,7 +379,6 @@ function RecurringModal({
         <form onSubmit={handleSubmit}>
           {step === 1 ? (
             <div>
-              {/* Name */}
               <div style={S.field}>
                 <label style={S.label}>Profile name *</label>
                 <input
@@ -411,7 +389,6 @@ function RecurringModal({
                 />
               </div>
 
-              {/* Client */}
               <div style={S.field}>
                 <label style={S.label}>Client</label>
                 <select value={form.client_id} onChange={e => setForm(f => ({ ...f, client_id: e.target.value }))} style={S.input}>
@@ -422,7 +399,6 @@ function RecurringModal({
                 </select>
               </div>
 
-              {/* Frequency */}
               <div style={S.field}>
                 <label style={S.label}>Frequency *</label>
                 <div style={S.freqGrid}>
@@ -438,7 +414,6 @@ function RecurringModal({
                 </div>
               </div>
 
-              {/* Start date */}
               <div style={S.field}>
                 <label style={S.label}>Start date</label>
                 <input
@@ -448,10 +423,8 @@ function RecurringModal({
                 />
               </div>
 
-              {/* Next run preview */}
               {form.start_date && <NextRunPreview startDate={form.start_date} frequency={form.frequency} />}
 
-              {/* Auto-send toggle */}
               <div style={S.toggleRow}>
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 500, color: '#fff' }}>Auto-send</div>
@@ -466,7 +439,6 @@ function RecurringModal({
                 </button>
               </div>
 
-              {/* Currency + VAT */}
               <div style={{ ...S.twoCol, marginBottom: 20 }}>
                 <div style={S.field}>
                   <label style={S.label}>Currency</label>
@@ -501,7 +473,6 @@ function RecurringModal({
             </div>
           ) : (
             <div>
-              {/* Notes */}
               <div style={S.field}>
                 <label style={S.label}>Invoice notes (optional)</label>
                 <textarea
@@ -512,7 +483,6 @@ function RecurringModal({
                 />
               </div>
 
-              {/* Product selection */}
               {products.length > 0 && (
                 <div style={S.field}>
                   <label style={S.label}>Add from your products ({products.length})</label>
@@ -534,9 +504,7 @@ function RecurringModal({
                               {formatCurrency(product.unit_price, form.template_currency)}
                             </span>
                             {selected && (
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2.5">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                              </svg>
+                              <span style={{ fontSize: 14, color: '#10b981' }}>✓</span>
                             )}
                           </div>
                         </button>
@@ -546,7 +514,6 @@ function RecurringModal({
                 </div>
               )}
 
-              {/* Selected items */}
               {form.selected_products.length > 0 && (
                 <div style={S.field}>
                   <label style={S.label}>Selected items ({form.selected_products.length})</label>
@@ -600,14 +567,12 @@ function RecurringModal({
   )
 }
 
-// ─── Delete Confirm ───────────────────────────────────────────────────────────
-
 function DeleteConfirm({ name, onConfirm, onCancel }: { name: string; onConfirm: () => void; onCancel: () => void }) {
   return (
     <div style={S.deleteOverlay} onClick={(e) => e.target === e.currentTarget && onCancel()}>
       <div style={S.deleteBox}>
         <h3 style={S.deleteTitle}>Delete recurring invoice?</h3>
-        <p style={S.deleteDesc}>&ldquo;{name}&rdquo; will be permanently deleted. Future invoices will stop generating.</p>
+        <p style={S.deleteDesc}>"{name}" will be permanently deleted. Future invoices will stop generating.</p>
         <div style={S.deleteBtnRow}>
           <button onClick={onCancel} style={S.deleteBtnCancel}>Cancel</button>
           <button onClick={onConfirm} style={S.deleteBtnConfirm}>Delete</button>
@@ -617,9 +582,8 @@ function DeleteConfirm({ name, onConfirm, onCancel }: { name: string; onConfirm:
   )
 }
 
-// ─── Main Page ───────────────────────────────────────────────────────────────
-
 export default function RecurringPage() {
+  const router = useRouter()
   const [profiles, setProfiles] = useState<RecurringProfile[]>([])
   const [clients, setClients] = useState<Client[]>([])
   const [products, setProducts] = useState<Product[]>([])
@@ -638,7 +602,7 @@ export default function RecurringPage() {
   async function loadData() {
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setLoading(false); setAuthChecked(true); return }
+    if (!user) { setLoading(false); setAuthChecked(true); router.push('/login'); return }
 
     const { data: company } = await supabase.from('companies').select('id').eq('user_id', user.id).single()
     if (!company) { setLoading(false); setAuthChecked(true); return }
@@ -715,11 +679,7 @@ export default function RecurringPage() {
   }
 
   async function handleToggleActive(profile: RecurringProfile) {
-    const { error } = await supabase
-      .from('recurring_profiles')
-      .update({ is_active: !profile.is_active })
-      .eq('id', profile.id)
-
+    const { error } = await supabase.from('recurring_profiles').update({ is_active: !profile.is_active }).eq('id', profile.id)
     if (!error) {
       setProfiles(prev => prev.map(p => p.id === profile.id ? { ...p, is_active: !p.is_active } : p))
       showToast('success', profile.is_active ? 'Paused' : 'Activated')
@@ -748,16 +708,10 @@ export default function RecurringPage() {
     }
   }
 
-  // Auth check
-  if (authChecked && !loading && profiles.length === 0) {
-    // Only redirect if we checked auth and found no user
-  }
-
   return (
     <>
       <style>{styleTag}</style>
       <div style={S.page}>
-        {/* Header */}
         <div style={S.header}>
           <div style={S.headerLeft}>
             <h1 style={S.title}>Recurring Invoices</h1>
@@ -769,20 +723,15 @@ export default function RecurringPage() {
             onMouseOver={e => { const s = e.currentTarget.style; s.background = '#059669'; s.transform = 'translateY(-1px)' }}
             onMouseOut={e => { const s = e.currentTarget.style; s.background = '#10b981'; s.transform = 'translateY(0)' }}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
+            <span style={{ fontSize: 16 }}>+</span>
             New Recurring
           </button>
         </div>
 
-        {/* Empty state */}
         {!loading && profiles.length === 0 && (
           <div style={S.emptyState}>
             <div style={S.emptyIcon}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#52525b" strokeWidth="1.5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
+              <span style={{ fontSize: 28, color: '#52525b' }}>↻</span>
             </div>
             <h3 style={S.emptyTitle}>No recurring invoices yet</h3>
             <p style={S.emptyDesc}>
@@ -792,28 +741,22 @@ export default function RecurringPage() {
               onClick={() => { setEditingProfile(null); setModalOpen(true) }}
               style={{ ...S.btnPrimary, gap: 10 }}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
+              <span style={{ fontSize: 16 }}>+</span>
               Create your first recurring invoice
             </button>
           </div>
         )}
 
-        {/* Skeleton */}
         {loading && (
           <div style={S.grid}>
             {[1, 2, 3, 4].map(i => <CardSkeleton key={i} />)}
           </div>
         )}
 
-        {/* Profile cards */}
         {!loading && profiles.length > 0 && (
           <div style={S.grid}>
             {profiles.map(profile => {
-              const subtotal = (profile.template_items || []).reduce(
-                (s: number, item: TemplateItem) => s + item.quantity * item.unit_price, 0
-              )
+              const subtotal = (profile.template_items || []).reduce((s: number, item: TemplateItem) => s + item.quantity * item.unit_price, 0)
               const nextDueSoon = isDueSoon(profile.next_run)
               const overdue = isOverdue(profile.next_run)
 
@@ -831,7 +774,6 @@ export default function RecurringPage() {
                     if (actions) actions.style.opacity = '0'
                   }}
                 >
-                  {/* Top row */}
                   <div style={S.cardTop}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
@@ -841,9 +783,7 @@ export default function RecurringPage() {
                         </span>
                         {profile.auto_send && (
                           <span style={S.autoSendBadge}>
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                            </svg>
+                            <span style={{ fontSize: 10 }}>✓</span>
                             Auto-send
                           </span>
                         )}
@@ -853,7 +793,6 @@ export default function RecurringPage() {
                         {profile.clients?.email && <span style={{ color: '#3f3f46', marginLeft: 6 }}>· {profile.clients.email}</span>}
                       </p>
                     </div>
-                    {/* Toggle */}
                     <button
                       onClick={() => handleToggleActive(profile)}
                       style={S.toggle(profile.is_active)}
@@ -863,7 +802,6 @@ export default function RecurringPage() {
                     </button>
                   </div>
 
-                  {/* Stats */}
                   <div style={S.statsRow}>
                     <div style={S.stat}>
                       <div style={S.statLabel}>Next run</div>
@@ -883,32 +821,23 @@ export default function RecurringPage() {
                     <div style={S.stat}>
                       <div style={S.statLabel}>Total</div>
                       <div style={S.statValue}>
-                        {profile.template_items?.length
-                          ? formatCurrency(subtotal, profile.template_currency)
-                          : '—'}
+                        {profile.template_items?.length ? formatCurrency(subtotal, profile.template_currency) : '—'}
                       </div>
                     </div>
                   </div>
 
-                  {/* Footer */}
                   <div style={S.cardFooter}>
                     <p style={S.lastGen}>
-                      {profile.last_generated
-                        ? `Last: ${formatDate(profile.last_generated)}`
-                        : 'Never generated'}
+                      {profile.last_generated ? `Last: ${formatDate(profile.last_generated)}` : 'Never generated'}
                     </p>
                     <div className="card-actions" style={{ ...S.actions, display: 'flex', gap: 4 }}>
-                      {/* Send now */}
                       <button
                         onClick={() => handleSendNow(profile)}
                         style={{ ...S.iconBtn('#10b981'), background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)' }}
                         title="Generate & send now"
                       >
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                        </svg>
+                        <span style={{ fontSize: 12 }}>📤</span>
                       </button>
-                      {/* Edit */}
                       <button
                         onClick={() => { setEditingProfile(profile); setModalOpen(true) }}
                         style={S.iconBtn('#71717a')}
@@ -916,11 +845,8 @@ export default function RecurringPage() {
                         onMouseOut={e => { const s = e.currentTarget.style; s.background = 'transparent'; s.color = '#71717a' }}
                         title="Edit"
                       >
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
+                        <span style={{ fontSize: 12 }}>✎</span>
                       </button>
-                      {/* Delete */}
                       <button
                         onClick={() => setDeleteId(profile.id)}
                         style={S.iconBtn('#71717a')}
@@ -928,9 +854,7 @@ export default function RecurringPage() {
                         onMouseOut={e => { const s = e.currentTarget.style; s.background = 'transparent'; s.color = '#71717a' }}
                         title="Delete"
                       >
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
+                        <span style={{ fontSize: 12 }}>🗑</span>
                       </button>
                     </div>
                   </div>
@@ -941,7 +865,6 @@ export default function RecurringPage() {
         )}
       </div>
 
-      {/* Modals */}
       {modalOpen && (
         <RecurringModal
           profile={editingProfile || undefined}
@@ -960,7 +883,6 @@ export default function RecurringPage() {
         />
       )}
 
-      {/* Toasts */}
       <div style={S.toastContainer}>
         {toasts.map(t => (
           <Toast key={t.id} message={t.message} type={t.type} onDismiss={() => setToasts(prev => prev.filter(x => x.id !== t.id))} />
