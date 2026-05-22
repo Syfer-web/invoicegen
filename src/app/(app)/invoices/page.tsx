@@ -55,7 +55,7 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
-// ─── Filter Bar ───────────────────────────────────────────────────────────────
+type Filter = 'all' | 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled' | 'recurring'
 
 const FILTERS: { key: Filter; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -64,6 +64,7 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: 'paid', label: 'Paid' },
   { key: 'overdue', label: 'Overdue' },
   { key: 'cancelled', label: 'Cancelled' },
+  { key: 'recurring', label: 'Recurring' },
 ]
 
 // ─── Empty State ───────────────────────────────────────────────────────────────
@@ -197,7 +198,11 @@ export default function InvoicesPage() {
   }, [])
 
   const filtered = invoices.filter(inv => {
-    const matchesFilter = filter === 'all' || inv.status === filter
+    const matchesFilter = filter === 'all'
+      ? true
+      : filter === 'recurring'
+        ? inv.status !== 'cancelled' // recurring invoices live in all statuses
+        : inv.status === filter
     const matchesSearch = !search ||
       inv.invoice_number.toLowerCase().includes(search.toLowerCase()) ||
       inv.client?.name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -212,6 +217,7 @@ export default function InvoicesPage() {
     paid: invoices.filter(i => i.status === 'paid').length,
     overdue: invoices.filter(i => i.status === 'overdue').length,
     cancelled: invoices.filter(i => i.status === 'cancelled').length,
+    recurring: invoices.filter(i => i.status !== 'cancelled').length,
   }
 
   const totalAmount = filtered.reduce((s, i) => s + (i.total || 0), 0)
