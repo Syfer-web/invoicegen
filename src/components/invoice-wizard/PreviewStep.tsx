@@ -24,14 +24,7 @@ export default function PreviewStep({ invoice, onBack }: Props) {
     setError('')
     try {
       const blob = await pdf(
-        <InvoicePDF
-          invoice={invoice}
-          companyName={invoice.company_name}
-          companyAddress={invoice.company_address}
-          companyEmail={invoice.company_email}
-          companyVat={invoice.company_vat}
-          currencySymbol={currencySymbol}
-        />
+        <InvoicePDF invoice={invoice} />
       ).toBlob()
 
       const url = URL.createObjectURL(blob)
