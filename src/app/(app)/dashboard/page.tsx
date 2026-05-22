@@ -245,19 +245,6 @@ function StatusBadge({ status }: { status: string }) {
 function EmptyState({ userName }: { userName: string }) {
   return (
     <div style={{ textAlign: 'center', padding: '48px 24px' }}>
-      {/* Invoice icon */}
-      <div style={{
-        width: '56px', height: '56px',
-        borderRadius: '16px',
-        background: 'rgba(255,255,255,0.04)',
-        border: '1px solid rgba(255,255,255,0.08)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        margin: '0 auto 16px',
-      }}>
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#52525b" strokeWidth="1.5">
-          <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </div>
       <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#a1a1aa', margin: '0 0 8px' }}>
         No invoices yet
       </h3>
@@ -276,10 +263,7 @@ function EmptyState({ userName }: { userName: string }) {
           transition: 'background 0.15s',
         }}
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-          <path d="M12 4v16m8-8H4" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-        New Invoice
+        + New Invoice
       </Link>
     </div>
   )
@@ -290,42 +274,18 @@ function EmptyState({ userName }: { userName: string }) {
 const QUICK_ACTIONS = [
   {
     href: '/invoices/new',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M12 4v16m8-8H4" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
-    iconBg: 'rgba(16,185,129,0.12)', iconColor: '#34d399',
     title: 'New Invoice', sub: 'Create and send instantly',
   },
   {
     href: '/clients',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
-    iconBg: 'rgba(255,255,255,0.06)', iconColor: '#71717a',
     title: 'Add Client', sub: 'Save for faster invoicing',
   },
   {
     href: '/settings/bank',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
-    iconBg: 'rgba(255,255,255,0.06)', iconColor: '#71717a',
     title: 'Bank Details', sub: 'Set up payment info',
   },
   {
     href: '/settings/reminders',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
-    iconBg: 'rgba(255,255,255,0.06)', iconColor: '#71717a',
     title: 'Reminders', sub: 'Auto-collect overdue',
   },
 ]
@@ -590,8 +550,8 @@ export default function Dashboard() {
           <div style={{ padding: '10px' }}>
             {QUICK_ACTIONS.map((action) => (
               <Link key={action.href} href={action.href} style={{
-                display: 'flex', alignItems: 'center', gap: '12px',
-                padding: '10px',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '12px 14px',
                 borderRadius: '10px',
                 textDecoration: 'none',
                 transition: 'background 0.15s',
@@ -599,15 +559,6 @@ export default function Dashboard() {
                 onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
               >
-                <div style={{
-                  width: '34px', height: '34px',
-                  borderRadius: '9px',
-                  background: action.iconBg,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  flexShrink: 0,
-                }}>
-                  <span style={{ color: action.iconColor }}>{action.icon}</span>
-                </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ fontSize: '13px', fontWeight: 600, color: '#e4e4e7', margin: 0 }}>{action.title}</p>
                   <p style={{ fontSize: '12px', color: '#52525b', margin: '2px 0 0' }}>{action.sub}</p>
