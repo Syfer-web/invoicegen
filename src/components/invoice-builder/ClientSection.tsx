@@ -66,9 +66,10 @@ export default function ClientSection({ client, onChange, savedClients, onClient
       const companyId = companies?.[0]?.id
       if (!companyId) throw new Error('No company found')
 
+      // Insert client (not upsert — handles gracefully if email exists)
       const { data: saved, error } = await supabase
         .from('clients')
-        .upsert({
+        .insert({
           company_id: companyId,
           name: local.name,
           company: local.company || null,
@@ -79,11 +80,20 @@ export default function ClientSection({ client, onChange, savedClients, onClient
           country: local.country || null,
           vat_number: local.vat_number || null,
           phone: local.phone || null,
-        }, { onConflict: 'company_id,email' })
+        })
         .select('id, name, company, email')
         .single()
 
-      if (error) throw error
+      if (error) {
+        // If duplicate email, just reload clients from DB
+        if (error.code === '23505') {
+          setClientError('A client with this email already exists.')
+        } else {
+          throw error
+        }
+        return
+      }
+
       if (saved && onClientSaved) {
         onClientSaved(saved)
       }

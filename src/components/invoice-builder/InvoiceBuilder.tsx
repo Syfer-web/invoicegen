@@ -415,10 +415,10 @@ export default function InvoiceBuilder() {
         }
       }
 
-      // Upsert invoice as sent
+      // Save invoice as sent (insert only — no unique constraint to upsert against)
       const { data: invoiceData } = await supabase
         .from('invoices')
-        .upsert({
+        .insert({
           company_id: selectedCompanyId,
           invoice_number: invoiceNumber,
           type: invoice.type,
@@ -442,24 +442,33 @@ export default function InvoiceBuilder() {
           allow_partial_payment: invoice.allow_partial_payment,
           early_payment_discount_percent: invoice.early_payment_discount_percent,
           early_payment_days: invoice.early_payment_days,
-        }, { onConflict: 'company_id,invoice_number' })
+        })
         .select()
         .single()
 
-      // Upsert client
+      // Save client (insert only)
       if (invoice.client) {
-        await supabase.from('clients').upsert({
-          company_id: selectedCompanyId,
-          name: invoice.client!.name,
-          company: invoice.client!.company || null,
-          email: invoice.client!.email,
-          address: invoice.client!.address || null,
-          city: invoice.client!.city || null,
-          postcode: invoice.client!.postcode || null,
-          country: invoice.client!.country || null,
-          vat_number: invoice.client!.vat_number || null,
-          phone: invoice.client!.phone || null,
-        }, { onConflict: 'company_id,email' })
+        const { data: existingClient } = await supabase
+          .from('clients')
+          .select('id')
+          .eq('company_id', selectedCompanyId)
+          .eq('email', invoice.client!.email)
+          .single()
+
+        if (!existingClient) {
+          await supabase.from('clients').insert({
+            company_id: selectedCompanyId,
+            name: invoice.client!.name,
+            company: invoice.client!.company || null,
+            email: invoice.client!.email,
+            address: invoice.client!.address || null,
+            city: invoice.client!.city || null,
+            postcode: invoice.client!.postcode || null,
+            country: invoice.client!.country || null,
+            vat_number: invoice.client!.vat_number || null,
+            phone: invoice.client!.phone || null,
+          })
+        }
       }
 
       // Upsert items

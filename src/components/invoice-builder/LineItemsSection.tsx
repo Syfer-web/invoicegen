@@ -75,7 +75,15 @@ export default function LineItemsSection({ items, onChange, currency, defaultVat
         is_active: true,
       }).select('id, name, unit_price, unit, vat_rate').single()
 
-      if (error) throw error
+      if (error) {
+        if (error.code === '23505') {
+          setProductError('A product with this name already exists.')
+        } else {
+          throw error
+        }
+        return
+      }
+
       if (saved && onProductSaved) onProductSaved(saved)
       setProductSaved(true)
       setTimeout(() => setProductSaved(false), 3000)
