@@ -615,38 +615,44 @@ export default function InvoiceBuilder() {
         gap: '28px',
         alignItems: 'flex-start',
       }}>
-        {/* Left: live preview */}
-        {showPreview && (
-          <div style={{ width: '340px', flexShrink: 0 }}>
-            <div style={{ fontSize: '11px', fontWeight: 600, color: '#52525B', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
-              {INVOICE_TEMPLATES.find(t => t.id === selectedTemplateId)?.name || 'Modern'}
-            </div>
+{/* Left: live preview — sticky so it stays in viewport as form scrolls */}
+          {showPreview && (
             <div style={{
-              background: '#fff',
-              borderRadius: '12px',
-              overflow: 'auto',
-              boxShadow: '0 0 0 1px rgba(0,0,0,0.06), 0 4px 32px rgba(0,0,0,0.14)',
-              maxHeight: 'calc(100vh - 200px)',
+              width: '340px',
+              flexShrink: 0,
+              position: 'sticky',
+              top: '88px',
+              alignSelf: 'flex-start',
             }}>
-              <LivePreview invoice={previewInvoice} templateId={selectedTemplateId} />
+              <div style={{ fontSize: '11px', fontWeight: 600, color: '#52525B', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
+                {INVOICE_TEMPLATES.find(t => t.id === selectedTemplateId)?.name || 'Modern'}
+              </div>
+              <div style={{
+                background: '#fff',
+                borderRadius: '12px',
+                overflow: 'auto',
+                boxShadow: '0 0 0 1px rgba(0,0,0,0.06), 0 4px 32px rgba(0,0,0,0.14)',
+                maxHeight: 'calc(100vh - 160px)',
+              }}>
+                <LivePreview invoice={previewInvoice} templateId={selectedTemplateId} />
+              </div>
+              <button
+                onClick={() => setShowPreview(false)}
+                style={{
+                  marginTop: '10px', width: '100%',
+                  padding: '8px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  background: 'rgba(255,255,255,0.04)',
+                  color: '#71717A',
+                  fontSize: '12px', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                }}
+              >
+                Focus mode
+              </button>
             </div>
-            <button
-              onClick={() => setShowPreview(false)}
-              style={{
-                marginTop: '10px', width: '100%',
-                padding: '8px',
-                borderRadius: '8px',
-                border: '1px solid rgba(255,255,255,0.08)',
-                background: 'rgba(255,255,255,0.04)',
-                color: '#71717A',
-                fontSize: '12px', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-              }}
-            >
-              Focus mode
-            </button>
-          </div>
-        )}
+          )}
 
         {/* Right: form sections */}
         <div style={{
