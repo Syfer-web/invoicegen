@@ -1,3 +1,7 @@
+/**
+ * Auth callback — handles tokens from Google OAuth (hash fragment) and magic links (query param).
+ * Client-side page reads hash tokens and calls supabase.auth.setSession().
+ */
 'use client'
 
 import { useEffect } from 'react'
@@ -8,7 +12,7 @@ export default function CallbackPage() {
   const router = useRouter()
 
   useEffect(() => {
-    // Google sends tokens in hash fragment — read them client-side
+    // Google sends tokens in hash fragment (#access_token=...) — read them client-side
     const hash = window.location.hash.substring(1)
     const params = new URLSearchParams(hash)
     const accessToken = params.get('access_token')
