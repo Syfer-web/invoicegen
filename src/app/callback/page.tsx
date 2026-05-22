@@ -1,47 +1,47 @@
 /**
- * Auth callback — handles tokens from Google OAuth (hash fragment) and magic links (query param).
- * Client-side page reads hash tokens and calls supabase.auth.setSession().
+ * Auth callback — handles Google OAuth hash tokens and magic link codes.
+ * Reads tokens client-side (where hash is accessible), then POSTs to
+ * server route which sets httpOnly cookies so the middleware can read them.
  */
 'use client'
 
 import { useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 
 export default function CallbackPage() {
   const router = useRouter()
 
   useEffect(() => {
-    // Google sends tokens in hash fragment (#access_token=...) — read them client-side
     const hash = window.location.hash.substring(1)
     const params = new URLSearchParams(hash)
     const accessToken = params.get('access_token')
     const refreshToken = params.get('refresh_token')
-
-    // Magic link sends ?code= — also handle via query param
     const code = new URLSearchParams(window.location.search).get('code')
 
     if (accessToken && refreshToken) {
-      // Google OAuth — tokens in hash
-      supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken,
-      }).then(({ error }) => {
-        if (error) {
-          router.push('/login?error=' + encodeURIComponent(error.message))
+      // Google OAuth — POST tokens to server route which sets cookies
+      fetch('/api/auth/set-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_token: accessToken, refresh_token: refreshToken }),
+      }).then(res => {
+        if (res.redirected) {
+          router.push(new URL(res.url).pathname)
         } else {
-          router.push('/dashboard')
+          router.push('/login?error=session_set_failed')
         }
       })
     } else if (code) {
-      // Magic link — code in query string
-      supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
-        if (error) {
-          router.push('/login?error=' + encodeURIComponent(error.message))
-        } else {
-          router.push('/dashboard')
-        }
-      })
+      // Magic link — exchange code client-side, then POST session to set cookies
+      // Use fetch to call our own set-session endpoint with the tokens
+      fetch(`/api/auth/callback?code=${code}`)
+        .then(res => {
+          if (res.redirected) {
+            router.push(new URL(res.url).pathname)
+          } else {
+            router.push('/login?error=code_exchange_failed')
+          }
+        })
     } else {
       router.push('/login?error=no_token')
     }
