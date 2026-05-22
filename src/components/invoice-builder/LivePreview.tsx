@@ -34,13 +34,8 @@ export default function LivePreview({ invoice, templateId = 'modern' }: Props) {
     <div style={{
       background: '#fff',
       borderRadius: '10px',
-      overflow: 'hidden',
-      boxShadow: '0 0 0 1px rgba(0,0,0,0.05), 0 2px 16px rgba(0,0,0,0.08)',
     }}>
-      {/* Invoice rendered inside a scrollable container if needed */}
-      <div style={{ overflow: 'auto', maxHeight: '560px' }}>
-        <PreviewComp invoice={invoice} />
-      </div>
+      <PreviewComp invoice={invoice} />
     </div>
   )
 }
