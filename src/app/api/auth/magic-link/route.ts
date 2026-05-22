@@ -1,7 +1,15 @@
 import { NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { createClient } from '@supabase/supabase-js'
+
+// Never statically generate — always dynamic
+export const dynamic = 'force-dynamic'
 
 export async function POST(request: Request) {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
   try {
     const { email } = await request.json()
 
@@ -9,7 +17,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 })
     }
 
-    const { error } = await supabaseAdmin.auth.signInWithOtp({
+    const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
         emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://invoicegen-delta-ten.vercel.app'}/auth/callback`,
