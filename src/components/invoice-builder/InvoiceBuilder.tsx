@@ -526,6 +526,36 @@ export default function InvoiceBuilder() {
     }
   }
 
+  // Handle download PDF
+  const handleDownloadPDF = async () => {
+    try {
+      const res = await fetch('/api/invoices/pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ templateId: selectedTemplateId, invoice: previewInvoice }),
+      })
+
+      if (!res.ok) throw new Error('PDF generation failed')
+
+      const contentType = res.headers.get('Content-Type') || ''
+
+      if (contentType.includes('application/pdf')) {
+        const blob = await res.blob()
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `${previewInvoice.invoice_number || 'invoice'}.pdf`
+        a.click()
+        URL.revokeObjectURL(url)
+      } else {
+        // No API key — fall back to print
+        window.print()
+      }
+    } catch (err) {
+      setError('Failed to download PDF. Please try again.')
+    }
+  }
+
   if (loading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '400px' }}>
@@ -954,6 +984,31 @@ export default function InvoiceBuilder() {
                 }}>⌘S</kbd>
               </>
             )}
+          </button>
+
+          {/* Download PDF */}
+          <button
+            onClick={handleDownloadPDF}
+            title="Download PDF"
+            style={{
+              padding: '10px 18px',
+              borderRadius: '10px',
+              border: '1px solid rgba(255,255,255,0.12)',
+              background: 'rgba(255,255,255,0.05)',
+              color: '#A1A1AA',
+              fontSize: '13px', fontWeight: 500,
+              cursor: 'pointer',
+              transition: 'all 0.15s',
+              minWidth: '120px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            Download PDF
           </button>
 
           {/* Send invoice */}
